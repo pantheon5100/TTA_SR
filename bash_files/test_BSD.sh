@@ -1,7 +1,7 @@
 python tta_main.py \
-        --input_dir "test/my_RealSR/Test/2/LR" \
-        --gt_dir "test/my_RealSR/Test/2/HR" \
-        --output_dir "test_swinir_real_SR" \
+        --input_dir "/workspace/ssd1_2tb/nax_projects/super_resolution/dataset/BSD/LR_bicubic/x2" \
+        --gt_dir "/workspace/ssd1_2tb/nax_projects/super_resolution/dataset/BSD/HR" \
+        --output_dir "test_swinir_BSD" \
         --num_iters 4000 \
         --input_crop_size 48 \
         --scale_factor 2 \

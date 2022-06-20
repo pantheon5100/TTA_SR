@@ -43,6 +43,9 @@ class options:
         self.parser.add_argument('--model_save_iter', type=int, default=500, help='for debug purpose')
 
         self.parser.add_argument('--test_only', action="store_true")
+        
+        
+        self.parser.add_argument('--training_strategy', type=str, default='000')
 
         
         self.conf = self.parser.parse_args()
@@ -59,7 +62,8 @@ class options:
         # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) if self.conf.gt_dir != '' else None
 
         if "Set5" in self.conf.gt_dir:
-            self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png") if self.conf.gt_dir != '' else None
+            # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png") if self.conf.gt_dir != '' else None
+            self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name)
         elif "my_RealSR" in self.conf.gt_dir:
             self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) 
 

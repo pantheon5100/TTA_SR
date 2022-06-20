@@ -82,6 +82,24 @@ class TTASR:
         self.train_G_DN_switch = False
         self.train_G_UP_switch = False
 
+        # train strategy
+        # basicly we use backward loss by default
+        # [gan loss, train gdn forward, train gup forward]
+        
+        train_strategy = list(self.conf.training_strategy)
+        self.train_strategy = [int(i) for i in train_strategy]
+        # self.train_strategy = [0, 0, 0]
+        # self.train_strategy = [0, 1, 0]
+        # self.train_strategy = [0, 0, 1]
+        # self.train_strategy = [0, 1, 1]
+        
+        # self.train_strategy = [1, 0, 0]
+        # self.train_strategy = [1, 1, 0]
+        # self.train_strategy = [1, 0, 1]
+        # self.train_strategy = [1, 1, 1]
+        
+        
+
     def read_image(self, conf):
         if conf.input_image_path:
             self.in_img = util.read_image(conf.input_image_path)
@@ -144,17 +162,21 @@ class TTASR:
             self.optimizer_G_DN.zero_grad()
             
             # Forward path
-            self.fake_HR = self.G_UP(self.real_LR)
-            self.rec_LR = self.G_DN(self.fake_HR)
+            if self.train_strategy[1] == 1:
+                self.fake_HR = self.G_UP(self.real_LR)
+                self.rec_LR = self.G_DN(self.fake_HR)
+                loss_cycle_forward = self.criterion_cycle(self.rec_LR, util.shave_a2b(self.real_LR, self.rec_LR)) * self.conf.lambda_cycle            
             # Backward path
             self.fake_LR = self.G_DN(self.real_HR)
             self.rec_HR = self.G_UP(self.fake_LR)
-            
-            # Losses
-            loss_GAN = self.criterion_gan(self.D_DN(self.fake_LR), True)
-            loss_cycle_forward = self.criterion_cycle(self.rec_LR, util.shave_a2b(self.real_LR, self.rec_LR)) * self.conf.lambda_cycle
             loss_cycle_backward = self.criterion_cycle(self.rec_HR, util.shave_a2b(self.real_HR, self.rec_HR)) * self.conf.lambda_cycle
-            
+                        
+            # Losses
+            if self.train_strategy[0] == 1:
+                loss_GAN = self.criterion_gan(self.D_DN(self.fake_LR), True)
+                
+
+
             # sobel_A = Sobel()(self.real_LR_bicubic.detach())
             # loss_map_A = 1 - torch.clamp(sobel_A, 0, 1)
             # self.loss_interp = self.criterion_interp(self.fake_HR * loss_map_A, self.real_LR_bicubic * loss_map_A) * self.conf.lambda_interp
@@ -205,11 +227,15 @@ class TTASR:
             self.optimizer_G_UP.zero_grad()
 
             # Forward path
-            self.fake_HR = self.G_UP(self.real_LR)
-            self.rec_LR = self.G_DN(self.fake_HR)
+            if self.train_strategy[2]==1:
+                self.fake_HR = self.G_UP(self.real_LR)
+                self.rec_LR = self.G_DN(self.fake_HR)
+                loss_cycle_forward = self.criterion_cycle(self.rec_LR, util.shave_a2b(self.real_LR, self.rec_LR)) * self.conf.lambda_cycle
+                
             # Backward path
             self.fake_LR = self.G_DN(self.real_HR)
             self.rec_HR = self.G_UP(self.fake_LR)
+            loss_cycle_backward = self.criterion_cycle(self.rec_HR, util.shave_a2b(self.real_HR, self.rec_HR)) * self.conf.lambda_cycle
 
 
             # sobel_A = Sobel()(self.real_LR_bicubic.detach())
@@ -217,9 +243,8 @@ class TTASR:
             # loss_interp = self.criterion_interp(self.fake_HR * loss_map_A, self.real_LR_bicubic * loss_map_A) * self.conf.lambda_interp
 
             # Losses
-            loss_cycle_forward = self.criterion_cycle(self.rec_LR, util.shave_a2b(self.real_LR, self.rec_LR)) * self.conf.lambda_cycle
-            loss_cycle_backward = self.criterion_cycle(self.rec_HR, util.shave_a2b(self.real_HR, self.rec_HR)) * self.conf.lambda_cycle
-
+            
+        
             total_loss = loss_cycle_forward + loss_cycle_backward
             total_loss.backward()
             
@@ -234,24 +259,28 @@ class TTASR:
             }
 
     def train_D_DN(self):
-        # Turn on gradient calculation for discriminator
-        util.set_requires_grad([self.D_DN], True)
-        
-        # Rese gradient valus
-        self.optimizer_D_DN.zero_grad()
-        
-        # Fake
-        pred_fake = self.D_DN(self.fake_LR.detach())
-        loss_D_fake = self.criterion_gan(pred_fake, False)
-        # Real
-        pred_real = self.D_DN(util.shave_a2b(self.real_LR, self.fake_LR))
-        loss_D_real = self.criterion_gan(pred_real, True)
-        # Combined loss and calculate gradients
-        self.loss_Discriminator = (loss_D_real + loss_D_fake) * 0.5
-        self.loss_Discriminator.backward()
+        if self.train_strategy[0] == 1:
+            # Turn on gradient calculation for discriminator
+            util.set_requires_grad([self.D_DN], True)
+            
+            # Rese gradient valus
+            self.optimizer_D_DN.zero_grad()
+            
+            # Fake
+            pred_fake = self.D_DN(self.fake_LR.detach())
+            loss_D_fake = self.criterion_gan(pred_fake, False)
+            # Real
+            pred_real = self.D_DN(util.shave_a2b(self.real_LR, self.fake_LR))
+            loss_D_real = self.criterion_gan(pred_real, True)
+            # Combined loss and calculate gradients
+            self.loss_Discriminator = (loss_D_real + loss_D_fake) * 0.5
+            self.loss_Discriminator.backward()
 
-        # Update weights
-        self.optimizer_D_DN.step()
+            # Update weights
+            self.optimizer_D_DN.step()
+        
+        else:
+            self.loss_Discriminator = 0
 
         return {
             "train_D_DN/loss_Discriminator": self.loss_Discriminator

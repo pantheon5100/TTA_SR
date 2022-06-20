@@ -16,7 +16,8 @@ from tta_data import create_dataset
 from tta_learner import Learner
 from tta_options import options
 # from DualSR import DualSR
-from tta_sr import TTASR
+# from tta_sr_bicubic import TTASR
+from tta_sr_loss_ablation import TTASR
 
 
 def train_and_eval(conf):
@@ -52,7 +53,6 @@ def train_and_eval(conf):
         loss = model.train(data)
         learner.update(iteration, model)
 
-        loss["iteration"] = iteration
 
         if (iteration+1) % conf.model_save_iter == 0:
             model.save_model(iteration+1)
@@ -61,7 +61,7 @@ def train_and_eval(conf):
             model.eval(iteration)
             with open(os.path.join(conf.experimentdir, "psnr.txt"), "a") as f:
                 f.write(
-                    f"IMG_IDX: {conf.img_idx}. iteration: {iteration}. {conf.abs_img_name}. PSNR: {model_img_specific.UP_psnrs[-1]} \n")
+                    f"IMG_IDX: {conf.img_idx}. iteration: {iteration}. {conf.abs_img_name}. PSNR: {model.UP_psnrs[-1]} \n")
 
             loss["eval/psnr"] = model.UP_psnrs[-1]
 
@@ -89,7 +89,6 @@ def train_and_eval(conf):
 
     model.eval(0)
     return model.UP_psnrs[-1]
-
 
 def main():
     torch.set_num_threads(5)
@@ -144,6 +143,7 @@ def main():
             model.read_image(conf)
             model.eval(0)
             with open(os.path.join(conf.experimentdir, "psnr.txt"), "a") as f:
+                #import ipdb; ipdb.set_trace()
                 f.write(
                     f"IMG: {img_idx}. Iteration: {0}. {conf.abs_img_name}. PSNR: {model.UP_psnrs[-1]}\n")
             all_psnr.append(model.UP_psnrs[-1])
@@ -166,7 +166,7 @@ def main():
     else:
         # wandb logger
         wandb.init(
-            project="TTA_SR",
+            project="TTA_SR-reproduce",
             entity="kaistssl",
             name=opt.conf.output_dir,
             config=opt.conf,
@@ -196,7 +196,6 @@ def main():
 
         f.write(f"Average PSNR: {np.mean(all_psnr)}.\n")
     print(f"Average PSNR for {opt.conf.input_dir}: {np.mean(all_psnr)}")
-
 
 if __name__ == '__main__':
     main()

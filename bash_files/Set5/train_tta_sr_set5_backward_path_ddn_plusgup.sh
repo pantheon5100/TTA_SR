@@ -6,7 +6,7 @@ python tta_main.py \
         --input_crop_size 48 \
         --scale_factor 2 \
         --switch_iters 3000 \
-        --eval_iters 10 \
+        --eval_iters 2 \
         --lr_G_UP 0.000002\
         --lr_G_DN 0.001
 
