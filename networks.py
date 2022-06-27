@@ -41,21 +41,23 @@ class Generator_UP(nn.Module):
 
 
 class Generator_DN(nn.Module):
-    def __init__(self, features=64):
+    def __init__(self, features=64, downsample_stride=2, first_layer_padding=0):
         super(Generator_DN, self).__init__()
         struct = [7, 5, 3, 1, 1, 1]
         self.G_kernel_size = 13
         # First layer
-        self.first_layer = nn.Conv2d(in_channels=1, out_channels=features, kernel_size=struct[0], stride=1, bias=False)
+        self.first_layer = nn.Conv2d(in_channels=1, out_channels=features, kernel_size=struct[0], stride=1, bias=False, padding=first_layer_padding)
+        # self.first_layer = nn.Conv2d(in_channels=1, out_channels=features, kernel_size=struct[0], stride=1, bias=False)
+        
 
         feature_block = []  # Stacking intermediate layer
         for layer in range(1, len(struct) - 1):
             if struct[layer] == 3: # Downsample on the first layer with kernel_size=1
-                feature_block += [nn.Conv2d(in_channels=features, out_channels=features, kernel_size=struct[layer], stride=2, bias=False)]
+                feature_block += [nn.Conv2d(in_channels=features, out_channels=features, kernel_size=struct[layer], stride=downsample_stride, bias=False)]
             else:
-                feature_block += [nn.Conv2d(in_channels=features, out_channels=features, kernel_size=struct[layer], bias=False)]
+                feature_block += [nn.Conv2d(in_channels=features, out_channels=features, kernel_size=struct[layer], bias=False, padding=first_layer_padding)]
         self.feature_block = nn.Sequential(*feature_block)
-        self.final_layer = nn.Conv2d(in_channels=features, out_channels=1, kernel_size=struct[-1], bias=False)
+        self.final_layer = nn.Conv2d(in_channels=features, out_channels=1, kernel_size=struct[-1], bias=False, padding=first_layer_padding)
 
     def forward(self, x):
         # Swap axis of RGB image for the network to get a "batch" of size = 3 rather the 3 channels

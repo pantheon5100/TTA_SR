@@ -1,13 +1,13 @@
+import math
 import os
-import torch
+
 import numpy as np
-from PIL import Image
 import scipy.io as sio
+import torch
+from PIL import Image
+from scipy.ndimage import interpolation, measurements
 from scipy.signal import convolve2d
 from torch.nn import functional as F
-from scipy.ndimage import measurements, interpolation
-
-import cv2
 
 
 def move2cpu(d):
@@ -29,7 +29,7 @@ def im2tensor(im_np, normalize_en = False):
     im_np = im_np / 255.0 if im_np.dtype == 'uint8' else im_np
     if normalize_en:
         im_np = im_np * 2.0 - 1.0
-    return torch.FloatTensor(np.transpose(im_np, (2, 0, 1))).unsqueeze(0).cuda()
+    return torch.FloatTensor(np.transpose(im_np, (2, 0, 1))).unsqueeze(0)
 
 
 def resize_tensor_w_kernel(im_t, k, sf=None):
@@ -40,7 +40,7 @@ def resize_tensor_w_kernel(im_t, k, sf=None):
     padding = (k.shape[-1] - 1) // 2
     return F.conv2d(im_t, k, stride=round(1 / sf), padding=padding)
     
-  
+
 def read_image(path):
     """Loads an image"""
     im = Image.open(path).convert('RGB')
@@ -77,6 +77,7 @@ def shave_a2b(a, b):
     c = 3 if is_tensor else 1
     
     assert (a.shape[r] >= b.shape[r]) and (a.shape[c] >= b.shape[c])
+    # import ipdb;ipdb.set_trace()
     assert ((a.shape[r] - b.shape[r]) % 2 == 0) and ((a.shape[c] - b.shape[c]) % 2 == 0)
     # Calculate the shaving of each dimension
     shave_r, shave_c = max(0, a.shape[r] - b.shape[r]), max(0, a.shape[c] - b.shape[c])
@@ -233,3 +234,23 @@ def cal_y_psnr(A, B, border):
     psnr_cur=10*np.log10(255*255/mse);
     
     return psnr_cur
+
+def calc_psnr_edsr(sr, hr, scale=2, rgb_range=255, dataset=None):
+    if hr.nelement() == 1: return 0
+
+    # import ipdb; ipdb.set_trace()
+    diff = (sr - hr) / rgb_range
+    # if dataset and dataset.dataset.benchmark:
+    shave = scale
+    if diff.size(1) > 1:
+        gray_coeffs = [65.738, 129.057, 25.064]
+        # gray_coeffs = [65.481, 128.553, 24.966]
+        convert = diff.new_tensor(gray_coeffs).view(1, 3, 1, 1) / 256
+        diff = diff.mul(convert).sum(dim=1)
+    # else:
+    #     shave = scale + 6
+
+    valid = diff[..., shave:-shave, shave:-shave]
+    mse = valid.pow(2).mean()
+
+    return -10 * math.log10(mse)

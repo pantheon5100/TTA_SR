@@ -29,14 +29,14 @@ def train_and_eval(conf):
     data_dir = f"generating_data/data_{conf.abs_img_name}_{conf.input_crop_size}_{conf.num_iters}.pth"
     os.makedirs(os.path.dirname(data_dir), exist_ok=True)
 
-    data_collection = []
-    if not os.path.exists(data_dir):
-        for iteration, data in enumerate(tqdm.tqdm(dataloader)):
-            data_collection.append(data)
+    # data_collection = []
+    # if not os.path.exists(data_dir):
+    #     for iteration, data in enumerate(tqdm.tqdm(dataloader)):
+    #         data_collection.append(data)
 
-        torch.save(data_collection, data_dir)
-    else:
-        data_collection = torch.load(data_dir)
+    #     torch.save(data_collection, data_dir)
+    # else:
+    #     data_collection = torch.load(data_dir)
 
     print('*' * 60 + '\nTraining started ...')
     # for iteration, data in enumerate(tqdm.tqdm(dataloader)):
@@ -46,10 +46,16 @@ def train_and_eval(conf):
     }
     psnr_record = []
     
-    for iteration, data in enumerate(tqdm.tqdm(data_collection)):
+    # for iteration, data in enumerate(tqdm.tqdm(data_collection)):
+    for iteration, data in enumerate(tqdm.tqdm(dataloader)):
         if iteration == 0:
             model.train_G_DN_switch = True
             model.train_G_UP_switch = False
+
+        if (iteration+1) % model.conf.switch_iters == 0:
+            model.train_G_UP_switch = not model.train_G_UP_switch
+            model.train_G_DN_switch = not model.train_G_DN_switch
+
         loss = model.train(data)
         learner.update(iteration, model)
 
@@ -100,7 +106,7 @@ def main():
     print("Start file saving...")
     time_stamp = datetime.now().strftime("%Y%m%d%H%M%S")
     # ipdb.set_trace()
-    experimentdir = f"./log/{opt.conf.output_dir}/time_{time_stamp}"
+    experimentdir = f"./log/{opt.conf.source_model}_{opt.conf.output_dir}/time_{time_stamp}"
     experimentdir += f"lr_GUP_{opt.conf.lr_G_UP}-lr_GDN_{opt.conf.lr_G_DN}input_size_{opt.conf.input_crop_size}-scale_factor_{opt.conf.scale_factor}"
     opt.conf.experimentdir = experimentdir
     code_saving_dir = os.path.join(experimentdir, "code")
@@ -168,7 +174,7 @@ def main():
         wandb.init(
             project="TTA_SR-reproduce",
             entity="kaistssl",
-            name=opt.conf.output_dir,
+            name=f"{opt.conf.source_model}-{opt.conf.output_dir}",
             config=opt.conf,
             dir=opt.conf.experimentdir,
             save_code=True,

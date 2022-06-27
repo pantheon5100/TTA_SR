@@ -1,5 +1,4 @@
 import torch
-import wandb
 import loss
 import networks
 import tta_util as util
@@ -81,6 +80,7 @@ class TTASR:
 
         self.train_G_DN_switch = False
         self.train_G_UP_switch = False
+        self.reshap_train_data = False
 
     def read_image(self, conf):
         if conf.input_image_path:
@@ -122,7 +122,12 @@ class TTASR:
         self.real_HR = data['HR']
         self.real_LR = data['LR']
         self.real_LR_bicubic = data['LR_bicubic']
-    
+        if self.reshap_train_data:
+            self.real_HR = self.real_HR.reshape([self.real_HR.size(
+                0)*self.real_HR.size(1), self.real_HR.size(2), self.real_HR.size(3), self.real_HR.size(4)])
+            self.real_LR = self.real_LR.reshape([self.real_LR.size(
+                0)*self.real_LR.size(1), self.real_LR.size(2), self.real_LR.size(3), self.real_LR.size(4)])
+
     
     def train_G_DN(self):
         loss_cycle_forward = 0
@@ -274,11 +279,31 @@ class TTASR:
 
 
     def quick_eval(self):
-        self.G_UP.eval()
+        
         # Evaluate trained upsampler and downsampler on input data
         with torch.no_grad():
             downsampled_img_t = self.G_DN(self.in_img_cropped_t)
-            upsampled_img_t = self.G_UP(self.in_img_t)
+
+            self.G_UP.eval()
+
+            if self.conf.source_model == "swinir":
+                window_size = 8
+                _, _, h_old, w_old = self.in_img_t.size()
+                in_img_t = self.in_img_t.clone()
+                h_pad = (h_old // window_size + 1) * window_size - h_old
+                w_pad = (w_old // window_size + 1) * window_size - w_old
+                in_img_t = torch.cat([in_img_t, torch.flip(in_img_t, [2])], 2)[
+                    :, :, :h_old + h_pad, :]
+                in_img_t = torch.cat([in_img_t, torch.flip(in_img_t, [3])], 3)[
+                    :, :, :, :w_old + w_pad]
+
+                upsampled_img_t = self.G_UP(in_img_t)
+                upsampled_img_t = upsampled_img_t[..., :h_old *
+                                                  self.conf.scale_factor, :w_old * self.conf.scale_factor]
+
+            else:
+                in_img_t = self.in_img_t
+                upsampled_img_t = self.G_UP(in_img_t)
         
         self.downsampled_img = util.tensor2im(downsampled_img_t)
         self.upsampled_img = util.tensor2im(upsampled_img_t)

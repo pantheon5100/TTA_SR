@@ -867,9 +867,9 @@ PRETRAINED_MODEL = {
     "classicalSR_s2_8": "001_classicalSR_DF2K_s64w8_SwinIR-M_x8.pth",
 
     # 002 Lightweight Image Super-Resolution (small size)
-    "lightweightSR_2": "002_lightweightSR_DIV2K_s64w8_SwinIR-S_x2",
-    "lightweightSR_3": "002_lightweightSR_DIV2K_s64w8_SwinIR-S_x3",
-    "lightweightSR_4": "002_lightweightSR_DIV2K_s64w8_SwinIR-S_x4",
+    "lightweightSR_2": "002_lightweightSR_DIV2K_s64w8_SwinIR-S_x2.pth",
+    "lightweightSR_3": "002_lightweightSR_DIV2K_s64w8_SwinIR-S_x3.pth",
+    "lightweightSR_4": "002_lightweightSR_DIV2K_s64w8_SwinIR-S_x4.pth",
 
     # 003 Real-World Image Super-Resolution (use --tile 400 if you run out-of-memory)
     # (middle size)
@@ -891,7 +891,7 @@ def define_model(task, scale, model_type, training_patch_size=48, large_model=Fa
         open(model_path, 'wb').write(r.content)
 
     # 001 classical image sr
-    if task == 'classical_sr':
+    if task == 'classicalSR_s1':
         model = SwinIR(upscale=scale, in_chans=3, img_size=training_patch_size, window_size=8,
                     img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
                     mlp_ratio=2, upsampler='pixelshuffle', resi_connection='1conv')
@@ -899,14 +899,14 @@ def define_model(task, scale, model_type, training_patch_size=48, large_model=Fa
 
     # 002 lightweight image sr
     # use 'pixelshuffledirect' to save parameters
-    elif task == 'lightweight_sr':
+    elif task == 'lightweightSR':
         model = SwinIR(upscale=scale, in_chans=3, img_size=64, window_size=8,
                     img_range=1., depths=[6, 6, 6, 6], embed_dim=60, num_heads=[6, 6, 6, 6],
                     mlp_ratio=2, upsampler='pixelshuffledirect', resi_connection='1conv')
         param_key_g = 'params'
 
     # 003 real-world image sr
-    elif task == 'real_sr':
+    elif task == 'realSR':
         if not large_model:
             # use 'nearest+conv' to avoid block artifacts
             model = SwinIR(upscale=scale, in_chans=3, img_size=64, window_size=8,
@@ -922,7 +922,8 @@ def define_model(task, scale, model_type, training_patch_size=48, large_model=Fa
 
     else:
         raise NotImplementedError
-
+    
+    # import ipdb; ipdb.set_trace()
     pretrained_model = torch.load(model_path)
     model.load_state_dict(pretrained_model[param_key_g] if param_key_g in pretrained_model.keys() else pretrained_model, strict=True)
 

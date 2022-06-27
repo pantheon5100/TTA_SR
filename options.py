@@ -39,6 +39,14 @@ class options:
         self.parser.add_argument('--eval_iters', type=int, default=100, help='for debug purpose')
         self.parser.add_argument('--plot_iters', type=int, default=200, help='for debug purpose')
         self.parser.add_argument('--debug', action='store_true', help='plot intermediate results')
+
+        # Source model
+        SUPPORT_SOURCE_MODEL = [
+            "swinir",
+            "rcan"
+        ]
+        self.parser.add_argument('--source_model', default='swinir',
+                                 choices=SUPPORT_SOURCE_MODEL, help='path to one specific image file')
         
         self.conf = self.parser.parse_args()
         

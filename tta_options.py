@@ -46,8 +46,46 @@ class options:
         
         
         self.parser.add_argument('--training_strategy', type=str, default='000')
-
         
+        SUPPORT_TRAIN_MODE=[
+            "original",
+            "bicubic",
+            "dual_path",
+            ]
+        self.parser.add_argument('--training_mode', type=str, choices=SUPPORT_TRAIN_MODE, default='original')
+        
+        self.parser.add_argument(
+            '--each_batch_img_size', type=int, default=5, help='batch size for training')
+        # Source model
+        SUPPORT_SOURCE_MODEL = [
+            "swinir",
+            "rcan",
+            "edsr"
+        ]
+        self.parser.add_argument('--source_model', default='swinir',
+                                 choices=SUPPORT_SOURCE_MODEL, help='path to one specific image file')
+        
+        # for swinir source model
+        SUPPORT_SWINIR_MODE=[
+            "classicalSR_s1",
+            "lightweightSR",
+            # "realSR", # not complete
+        ]
+        self.parser.add_argument('--swinir_task', type=str, default='classicalSR_s1', choices=SUPPORT_SWINIR_MODE)
+        
+        
+
+
+        # for pretrain gdn
+        self.parser.add_argument('--pretrained_gdn_only', action='store_true')
+        self.parser.add_argument('--pretrained_gdn', type=str, default='')
+        self.parser.add_argument('--pretrained_gdn_with_imgenet', action='store_true')
+        self.parser.add_argument('--pretrained_gdn_num_iters', type=int, default=3000)
+
+        # for gup updating
+        self.parser.add_argument('--finetune_gdn', action='store_true')
+        
+
         self.conf = self.parser.parse_args()
         
         # if not os.path.exists(self.conf.output_dir):
@@ -64,15 +102,23 @@ class options:
         if "Set5" in self.conf.gt_dir:
             # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png") if self.conf.gt_dir != '' else None
             self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name)
+        
+        elif "Manga109" in self.conf.gt_dir:
+            self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png")
         elif "my_RealSR" in self.conf.gt_dir:
             self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) 
+        
+        else:
+            # for set14 and other dataset
+            self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) 
+            
 
         # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) if self.conf.gt_dir != '' else None
 
-        print('*' * 60 + '\nRunning DualSR ...')
+        print('*' * 60)
         print('input image: \'%s\'' %self.conf.input_image_path)
         print('grand-truth image: \'%s\'' %self.conf.gt_path)
-        print('grand-truth kernel: \'%s\'' %self.conf.kernel_path)
+        # print('grand-truth kernel: \'%s\'' %self.conf.kernel_path)
         return self.conf
 
 

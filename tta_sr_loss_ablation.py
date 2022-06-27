@@ -1,17 +1,31 @@
+import os
+
+import imageio
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import wandb
+from matplotlib.gridspec import GridSpec
+from scipy.io import loadmat
+from PIL import Image
+
 import loss
 import networks
 import tta_util as util
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
-import numpy as np
-from scipy.io import loadmat
-import os
 from torch_sobel import Sobel
-
+from tta_model.get_model import get_model
 from tta_model.network_swinir import define_model
 
+
+
+def read_image(path):
+    """Loads an image"""
+    im = Image.open(path).convert('RGB')
+    im = np.array(im, dtype=np.uint8)
+
+    # im = imageio.imread(path)
+
+    return im
 
 class TTASR:
 
@@ -25,17 +39,12 @@ class TTASR:
 
         # Define the networks
         # 1. Define and Load the pretrained swinir
-        G_UP_model_conf = {
-            "task": "classical_sr",
-            "scale": conf.scale_factor,
-            "model_type": f"classicalSR_s1_{conf.scale_factor}",
-            "training_patch_size": conf.input_crop_size,
-            "large_model": False
-            }
-        self.G_UP = define_model(**G_UP_model_conf).cuda()
+        self.G_UP = get_model(conf)
         self.D_DN = networks.Discriminator_DN().cuda()
         # 2. Define the down sample network
-        self.G_DN = networks.Generator_DN().cuda()
+        # self.G_DN = networks.Generator_DN(downsample_stride=conf.scale_factor, first_layer_padding="same").cuda()
+        self.G_DN = networks.Generator_DN(downsample_stride=conf.scale_factor).cuda()
+        
 
         # Losses
         self.criterion_gan = loss.GANLoss().cuda()
@@ -81,34 +90,39 @@ class TTASR:
 
         self.train_G_DN_switch = False
         self.train_G_UP_switch = False
+        self.train_D_DN_switch = True
+        
+        self.reshap_train_data = False
 
         # train strategy
         # basicly we use backward loss by default
-        # [gan loss, train gdn forward, train gup forward]
+        # [gan loss, train gdn forward, train gup forward, train gdn backward, train gup backward]
         
         train_strategy = list(self.conf.training_strategy)
         self.train_strategy = [int(i) for i in train_strategy]
-        # self.train_strategy = [0, 0, 0]
-        # self.train_strategy = [0, 1, 0]
-        # self.train_strategy = [0, 0, 1]
-        # self.train_strategy = [0, 1, 1]
         
-        # self.train_strategy = [1, 0, 0]
-        # self.train_strategy = [1, 1, 0]
-        # self.train_strategy = [1, 0, 1]
-        # self.train_strategy = [1, 1, 1]
-        
-        
+        if len(self.train_strategy) ==3:
+            self.train_strategy.append(1)
+            self.train_strategy.append(1)
+
 
     def read_image(self, conf):
         if conf.input_image_path:
-            self.in_img = util.read_image(conf.input_image_path)
-            self.in_img_t= util.im2tensor(self.in_img)
+            
+            self.in_img = read_image(conf.input_image_path)
+            if conf.source_model == "edsr" or conf.source_model == "rcan" :
+                
+                self.in_img_t = torch.FloatTensor(np.transpose(self.in_img, (2, 0, 1))).unsqueeze(0).cuda()
+                pass
+            else:
+                
+                self.in_img_t= util.im2tensor(self.in_img).cuda()
+                
             b_x = self.in_img_t.shape[2] % conf.scale_factor
             b_y = self.in_img_t.shape[3] % conf.scale_factor
             self.in_img_cropped_t = self.in_img_t[..., b_x:, b_y:]
         
-        self.gt_img = util.read_image(conf.gt_path) if conf.gt_path is not None else None
+        self.gt_img = read_image(conf.gt_path) if conf.gt_path is not None else None
         self.gt_kernel = loadmat(conf.kernel_path)['Kernel'] if conf.kernel_path is not None else None
         self.UP_psnrs = [] if self.gt_img is not None else None
         self.DN_psnrs = [] if self.gt_kernel is not None else None
@@ -137,10 +151,16 @@ class TTASR:
         return loss
     
     def set_input(self, data):
-        self.real_HR = data['HR']
-        self.real_LR = data['LR']
-        self.real_LR_bicubic = data['LR_bicubic']
-    
+        self.real_HR = data['HR'].cuda()
+        self.real_LR = data['LR'].cuda()
+        # self.real_LR_bicubic = data['LR_bicubic']
+        # import ipdb; ipdb.set_trace()
+        if self.reshap_train_data:
+            self.real_HR = self.real_HR.reshape([self.real_HR.size(
+                0)*self.real_HR.size(1), self.real_HR.size(2), self.real_HR.size(3), self.real_HR.size(4)])
+            self.real_LR = self.real_LR.reshape([self.real_LR.size(
+                0)*self.real_LR.size(1), self.real_LR.size(2), self.real_LR.size(3), self.real_LR.size(4)])
+
     
     def train_G_DN(self):
         loss_cycle_forward = 0
@@ -167,10 +187,11 @@ class TTASR:
                 self.rec_LR = self.G_DN(self.fake_HR)
                 loss_cycle_forward = self.criterion_cycle(self.rec_LR, util.shave_a2b(self.real_LR, self.rec_LR)) * self.conf.lambda_cycle            
             # Backward path
-            self.fake_LR = self.G_DN(self.real_HR)
-            self.rec_HR = self.G_UP(self.fake_LR)
-            loss_cycle_backward = self.criterion_cycle(self.rec_HR, util.shave_a2b(self.real_HR, self.rec_HR)) * self.conf.lambda_cycle
-                        
+            if self.train_strategy[3] == 1:
+                self.fake_LR = self.G_DN(self.real_HR)
+                self.rec_HR = self.G_UP(self.fake_LR)
+                loss_cycle_backward = self.criterion_cycle(self.rec_HR, util.shave_a2b(self.real_HR, self.rec_HR)) * self.conf.lambda_cycle
+
             # Losses
             if self.train_strategy[0] == 1:
                 loss_GAN = self.criterion_gan(self.D_DN(self.fake_LR), True)
@@ -188,7 +209,7 @@ class TTASR:
             # total_loss = loss_cycle_forward + loss_cycle_backward
 
             total_loss = loss_cycle_forward + loss_cycle_backward + loss_GAN 
-            
+                        
             # total_loss = loss_cycle_forward + loss_cycle_backward + self.loss_regularization
 
             
@@ -202,7 +223,7 @@ class TTASR:
             "train_G_DN/loss_cycle_backward":loss_cycle_backward,
             "train_G_DN/total_loss":total_loss,
             "train_G_DN/loss_GAN": loss_GAN,
-            "train_G_DN/loss_regularization": self.loss_regularization,
+            # "train_G_DN/loss_regularization": self.loss_regularization,
 
             }
 
@@ -211,7 +232,7 @@ class TTASR:
         loss_cycle_backward = 0
         total_loss = 0
         loss_interp = 0
-        
+
         if self.train_G_UP_switch:
 
             # Turn on gradient calculation for G_UP
@@ -233,9 +254,10 @@ class TTASR:
                 loss_cycle_forward = self.criterion_cycle(self.rec_LR, util.shave_a2b(self.real_LR, self.rec_LR)) * self.conf.lambda_cycle
                 
             # Backward path
-            self.fake_LR = self.G_DN(self.real_HR)
-            self.rec_HR = self.G_UP(self.fake_LR)
-            loss_cycle_backward = self.criterion_cycle(self.rec_HR, util.shave_a2b(self.real_HR, self.rec_HR)) * self.conf.lambda_cycle
+            if self.train_strategy[4]==1:
+                self.fake_LR = self.G_DN(self.real_HR)
+                self.rec_HR = self.G_UP(self.fake_LR)
+                loss_cycle_backward = self.criterion_cycle(self.rec_HR, util.shave_a2b(self.real_HR, self.rec_HR)) * self.conf.lambda_cycle
 
 
             # sobel_A = Sobel()(self.real_LR_bicubic.detach())
@@ -244,8 +266,8 @@ class TTASR:
 
             # Losses
             
-        
             total_loss = loss_cycle_forward + loss_cycle_backward
+            
             total_loss.backward()
             
             # Update weights
@@ -259,7 +281,7 @@ class TTASR:
             }
 
     def train_D_DN(self):
-        if self.train_strategy[0] == 1:
+        if self.train_strategy[0] == 1 and self.train_D_DN_switch:
             # Turn on gradient calculation for discriminator
             util.set_requires_grad([self.D_DN], True)
             
@@ -288,43 +310,85 @@ class TTASR:
 
     def eval(self, iteration):
         self.quick_eval()
-        if self.conf.debug:
-            self.plot()
+        # if self.conf.debug:
+        #     self.plot()
             
-        plt.imsave(os.path.join(self.conf.visual_dir, f"upsampled_img_{self.conf.abs_img_name}_{iteration+1}.png"), self.upsampled_img)
-        plt.imsave(os.path.join(self.conf.visual_dir, f"downsampled_img_{self.conf.abs_img_name}_{iteration+1}.png"), self.downsampled_img)
+        # plt.imsave(os.path.join(self.conf.visual_dir, f"upsampled_img_{self.conf.abs_img_name}_{iteration+1}.png"), self.upsampled_img)
+        # plt.imsave(os.path.join(self.conf.visual_dir, f"downsampled_img_{self.conf.abs_img_name}_{iteration+1}.png"), self.downsampled_img)
         
-        if self.gt_img is not None:
-            print('Upsampler PSNR = ', self.UP_psnrs[-1])
-        if self.gt_kernel is not None:
-            print("Downsampler PSNR = ", self.DN_psnrs[-1])
-        print('*' * 60 + '\nOutput is saved in \'%s\' folder\n' % self.conf.visual_dir)
-        plt.close('all')
+        # if self.gt_img is not None:
+        #     print('Upsampler PSNR = ', self.UP_psnrs[-1])
+        # if self.gt_kernel is not None:
+        #     print("Downsampler PSNR = ", self.DN_psnrs[-1])
+        # print('*' * 60 + '\nOutput is saved in \'%s\' folder\n' % self.conf.visual_dir)
+        # plt.close('all')
 
 
     def quick_eval(self):
-        self.G_UP.eval()
         # Evaluate trained upsampler and downsampler on input data
         with torch.no_grad():
+            
             downsampled_img_t = self.G_DN(self.in_img_cropped_t)
-            upsampled_img_t = self.G_UP(self.in_img_t)
-        
-        self.downsampled_img = util.tensor2im(downsampled_img_t)
-        self.upsampled_img = util.tensor2im(upsampled_img_t)
-        
-        if self.gt_kernel is not None:
-            self.DN_psnrs += [util.cal_y_psnr(self.downsampled_img, self.gt_downsampled_img, border=self.conf.scale_factor)]
-        if self.gt_img is not None:
-            self.UP_psnrs += [util.cal_y_psnr(self.upsampled_img, self.gt_img, border=self.conf.scale_factor)]
-        self.debug_steps += [self.iter]
+            self.G_UP.eval()
 
-        if self.conf.debug:
-            # Save loss values for visualization
-            self.loss_GANs += [util.move2cpu(self.loss_GAN)]
-            self.loss_cycle_forwards += [util.move2cpu(self.loss_cycle_forward)]
-            self.loss_cycle_backwards += [util.move2cpu(self.loss_cycle_backward)]
-            self.loss_interps += [util.move2cpu(self.loss_interp)]
-            self.loss_Discriminators += [util.move2cpu(self.loss_Discriminator)]
+            if self.conf.source_model == "swinir":
+                window_size = 8
+                _, _, h_old, w_old = self.in_img_t.size()
+                in_img_t = self.in_img_t.clone()
+                h_pad = (h_old // window_size + 1) * window_size - h_old
+                w_pad = (w_old // window_size + 1) * window_size - w_old
+                in_img_t = torch.cat([in_img_t, torch.flip(in_img_t, [2])], 2)[
+                    :, :, :h_old + h_pad, :]
+                in_img_t = torch.cat([in_img_t, torch.flip(in_img_t, [3])], 3)[
+                    :, :, :, :w_old + w_pad]
+
+                upsampled_img_t = self.G_UP(in_img_t)
+                upsampled_img_t = upsampled_img_t[..., :h_old *
+                                                  self.conf.scale_factor, :w_old * self.conf.scale_factor]
+                self.downsampled_img = util.tensor2im(downsampled_img_t)
+                self.upsampled_img = util.tensor2im(upsampled_img_t)
+                
+                if self.gt_img is not None:
+                    _, _, h_old, w_old = self.in_img_t.size()
+                    self.UP_psnrs += [util.cal_y_psnr(self.upsampled_img, self.gt_img[:h_old * self.conf.scale_factor,
+                                                    :w_old * self.conf.scale_factor, ...], border=self.conf.scale_factor)]
+
+            elif self.conf.source_model == "edsr" or self.conf.source_model == "rcan":
+                in_img_t = self.in_img_t
+                upsampled_img_t = self.G_UP(in_img_t)
+                pixel_range = 255/255
+                upsampled_img_t = upsampled_img_t.mul(pixel_range).clamp(0, 255).round().div(pixel_range)
+                
+                from tta_util import calc_psnr_edsr
+                _, _, h_old, w_old = self.in_img_t.size()
+                # gt_img = torch.tensor(self.gt_img.transpose((2, 0, 1))).cuda()
+                # upsampled_img_t = upsampled_img_t.squeeze()
+                # self.UP_psnrs += [calc_psnr_edsr(upsampled_img_t, gt_img)]
+                upsampled_img_t = upsampled_img_t.squeeze()
+                upsampled_img_t = upsampled_img_t.cpu().numpy().transpose((1, 2, 0))
+                # import ipdb; ipdb.set_trace()
+                self.UP_psnrs += [util.cal_y_psnr(upsampled_img_t, self.gt_img[:h_old * self.conf.scale_factor,
+                                                    :w_old * self.conf.scale_factor, ...], border=self.conf.scale_factor)]
+                
+                
+                # if self.gt_img is not None:
+                #     _, _, h_old, w_old = self.in_img_t.size()
+                #     self.UP_psnrs += [util.cal_y_psnr(self.upsampled_img, self.gt_img[:h_old * self.conf.scale_factor,
+                #                                     :w_old * self.conf.scale_factor, ...], border=self.conf.scale_factor)]
+
+            else:
+                # import ipdb; ipdb.set_trace()
+                in_img_t = self.in_img_t
+                upsampled_img_t = self.G_UP(in_img_t)
+                
+        
+                self.downsampled_img = util.tensor2im(downsampled_img_t)
+                self.upsampled_img = util.tensor2im(upsampled_img_t)
+                
+                if self.gt_img is not None:
+                    _, _, h_old, w_old = self.in_img_t.size()
+                    self.UP_psnrs += [util.cal_y_psnr(self.upsampled_img, self.gt_img[:h_old * self.conf.scale_factor,
+                                                    :w_old * self.conf.scale_factor, ...], border=self.conf.scale_factor)]
 
 
     def plot(self):
@@ -434,7 +498,7 @@ class TTASR:
     def save_model(self, iteration):
 
         torch.save(self.G_UP, os.path.join(self.conf.model_save_dir, f"ckpt_GUP_{iteration+1}.pth"))
-        torch.save(self.G_UP, os.path.join(self.conf.model_save_dir, f"ckpt_GDN_{iteration+1}.pth"))
+        torch.save(self.G_DN, os.path.join(self.conf.model_save_dir, f"ckpt_GDN_{iteration+1}.pth"))
 
 
 
