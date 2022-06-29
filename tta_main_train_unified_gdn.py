@@ -157,7 +157,6 @@ def main():
                 f.write(
                     f"IMG: {img_idx}. Iteration: {0}. {conf.abs_img_name}. PSNR: {model.UP_psnrs[-1]}\n")
             all_psnr.append(model.UP_psnrs[-1])
-            all_psnr.append(model.UP_psnrs[-1])
             img_list.append(img_name)
             
         all_psnr = np.array(all_psnr)
@@ -449,10 +448,12 @@ def main():
                     if iteration == 0:
                         model.train_G_DN_switch = True
                         model.train_G_UP_switch = False
+                        model.train_D_DN_switch = True
 
                     if (iteration+1) % model.conf.switch_iters == 0:
                         model.train_G_UP_switch = not model.train_G_UP_switch
                         model.train_G_DN_switch = not model.train_G_DN_switch
+                        model.train_D_DN_switch = False
                 else:
                     if iteration == 0:
                         model.train_G_DN_switch = False

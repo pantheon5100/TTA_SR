@@ -1,5 +1,6 @@
 *.pyc
 *.pth
+*.pt
 
 results
 debug_output

@@ -139,7 +139,7 @@ class DataGenerator_ALLIMG(Dataset):
         self.in_rows, self.in_cols = [], []
         self.crop_indices_for_g, self.crop_indices_for_d = [], []
         
-        data_dir = ""
+        # data_dir = ""
         data_dir = "imagenet_data.pt"
         if data_dir != "":
             image_data = torch.load(data_dir)
