@@ -18,7 +18,7 @@ class Learner:
         self.similar_to_bicubic = False  # Flag indicating when the bicubic similarity is achieved
         self.insert_constraints = True  # Flag is switched to false once constraints are added to the loss
                
-        self.G_UP_lr_scheduler = torch.optim.lr_scheduler.StepLR(model.optimizer_G_UP, step_size=750, gamma=0.5)
+        self.G_UP_lr_scheduler = torch.optim.lr_scheduler.StepLR(model.optimizer_G_UP, step_size=model.conf.lr_G_UP_step_size, gamma=0.5)
 
     def update(self, iteration: int, model: TTASR):
         self.G_UP_lr_scheduler.step()

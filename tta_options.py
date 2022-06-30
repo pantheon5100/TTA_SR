@@ -30,6 +30,7 @@ class options:
         
         # Learning rates
         self.parser.add_argument('--lr_G_UP', type=float, default=0.001, help='initial learning rate for upsampler generator')
+        self.parser.add_argument('--lr_G_UP_step_size', type=int, default=750)
         self.parser.add_argument('--lr_G_DN', type=float, default=0.0002, help='initial learning rate for downsampler generator')
         self.parser.add_argument('--lr_D_DN', type=float, default=0.0002, help='initial learning rate for downsampler discriminator')
         self.parser.add_argument('--beta1', type=float, default=0.5, help='Adam momentum')

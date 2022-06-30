@@ -1,5 +1,4 @@
 import argparse
-import cv2
 import glob
 import numpy as np
 from collections import OrderedDict

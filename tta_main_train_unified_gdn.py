@@ -9,7 +9,7 @@ from turtle import forward
 
 import ipdb
 import numpy as np
-import setGPU
+# import setGPU
 import torch
 import torch.nn.functional as F
 import tqdm
@@ -158,6 +158,7 @@ def main():
                     f"IMG: {img_idx}. Iteration: {0}. {conf.abs_img_name}. PSNR: {model.UP_psnrs[-1]}\n")
             all_psnr.append(model.UP_psnrs[-1])
             img_list.append(img_name)
+            
             
         all_psnr = np.array(all_psnr)
         with open(os.path.join(conf.experimentdir, "final_psnr.txt"), "a") as f:
@@ -315,7 +316,7 @@ def main():
          
          
          
-        
+         
         
         
         
@@ -407,7 +408,7 @@ def main():
             
             
             
-            
+
             
             
             
@@ -469,7 +470,7 @@ def main():
                 learner.update(iteration, model)
 
 
-                if (iteration+1) % conf.model_save_iter == 0:
+                if ((iteration+1) % conf.model_save_iter == 0) or ((iteration+1) % model.conf.switch_iters == 0):
                     model.save_model(iteration+1)
 
                 if (iteration+1) % conf.eval_iters == 0 and model.train_G_UP_switch:
@@ -502,7 +503,7 @@ def main():
                 best_res["PSNR"], best_res["iteration"]))
             wandb.run.summary[f"best_psnr_{conf.abs_img_name}"] = best_res["PSNR"]
 
-            model.eval(0)
+            model.eval(0, save_result=True, )
             psnr = model.UP_psnrs[-1]
 
             
@@ -529,13 +530,17 @@ def main():
             
             all_psnr.append(psnr)
             img_list.append(img_name)
+            
+            with open(os.path.join(conf.experimentdir, "final_psnr.txt"), "a") as f:
+                f.write(f"IMG: {img_name}, psnr: {psnr} .\n")
+
 
     all_psnr = np.array(all_psnr)
     with open(os.path.join(conf.experimentdir, "final_psnr.txt"), "a") as f:
         f.write(f"Input directory: {opt.conf.input_dir}.\n")
 
-        for img, psnr in zip(img_list, all_psnr):
-            f.write(f"IMG: {img}, psnr: {psnr} .\n")
+        # for img, psnr in zip(img_list, all_psnr):
+        #     f.write(f"IMG: {img}, psnr: {psnr} .\n")
 
         f.write(f"Average PSNR: {np.mean(all_psnr)}.\n")
     print(f"Average PSNR for {opt.conf.input_dir}: {np.mean(all_psnr)}")

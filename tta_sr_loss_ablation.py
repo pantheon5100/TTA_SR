@@ -186,9 +186,12 @@ class TTASR:
                 self.fake_HR = self.G_UP(self.real_LR)
                 self.rec_LR = self.G_DN(self.fake_HR)
                 loss_cycle_forward = self.criterion_cycle(self.rec_LR, util.shave_a2b(self.real_LR, self.rec_LR)) * self.conf.lambda_cycle            
+                
+            if self.train_strategy[3] == 1 or self.train_strategy[0] == 1:
+                self.fake_LR = self.G_DN(self.real_HR)
+            
             # Backward path
             if self.train_strategy[3] == 1:
-                self.fake_LR = self.G_DN(self.real_HR)
                 self.rec_HR = self.G_UP(self.fake_LR)
                 loss_cycle_backward = self.criterion_cycle(self.rec_HR, util.shave_a2b(self.real_HR, self.rec_HR)) * self.conf.lambda_cycle
 
@@ -308,14 +311,17 @@ class TTASR:
             "train_D_DN/loss_Discriminator": self.loss_Discriminator
         }
 
-    def eval(self, iteration):
+    def eval(self, iteration, save_result=False):
         self.quick_eval()
+        torch.cuda.empty_cache()
         # if self.conf.debug:
         #     self.plot()
-            
-        # plt.imsave(os.path.join(self.conf.visual_dir, f"upsampled_img_{self.conf.abs_img_name}_{iteration+1}.png"), self.upsampled_img)
-        # plt.imsave(os.path.join(self.conf.visual_dir, f"downsampled_img_{self.conf.abs_img_name}_{iteration+1}.png"), self.downsampled_img)
         
+        if save_result:
+            plt.imsave(os.path.join(self.conf.visual_dir, f"upsampled_img_{self.conf.abs_img_name}_{iteration+1}.png"), self.upsampled_img)
+            plt.imsave(os.path.join(self.conf.visual_dir, f"downsampled_img_{self.conf.abs_img_name}_{iteration+1}.png"), self.downsampled_img)
+            plt.close('all')
+            
         # if self.gt_img is not None:
         #     print('Upsampler PSNR = ', self.UP_psnrs[-1])
         # if self.gt_kernel is not None:
@@ -350,7 +356,7 @@ class TTASR:
                 
                 if self.gt_img is not None:
                     _, _, h_old, w_old = self.in_img_t.size()
-                    self.UP_psnrs += [util.cal_y_psnr(self.upsampled_img, self.gt_img[:h_old * self.conf.scale_factor,
+                    self.UP_psnrs = [util.cal_y_psnr(self.upsampled_img, self.gt_img[:h_old * self.conf.scale_factor,
                                                     :w_old * self.conf.scale_factor, ...], border=self.conf.scale_factor)]
 
             elif self.conf.source_model == "edsr" or self.conf.source_model == "rcan":
@@ -499,6 +505,7 @@ class TTASR:
 
         torch.save(self.G_UP, os.path.join(self.conf.model_save_dir, f"ckpt_GUP_{iteration+1}.pth"))
         torch.save(self.G_DN, os.path.join(self.conf.model_save_dir, f"ckpt_GDN_{iteration+1}.pth"))
+        torch.save(self.D_DN, os.path.join(self.conf.model_save_dir, f"ckpt_DDN_{iteration+1}.pth"))
 
 
 
