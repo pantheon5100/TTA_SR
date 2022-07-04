@@ -437,14 +437,15 @@ def main():
                 data_collection = torch.load(data_dir)
 
             print('*' * 60 + '\nTraining started ...')
-            # for iteration, data in enumerate(tqdm.tqdm(dataloader)):
+            
             best_res = {
                 "iteration": 0,
                 "PSNR": 0,
             }
             psnr_record = []
+            for iteration, data in enumerate(tqdm.tqdm(dataloader)):
             
-            for iteration, data in enumerate(tqdm.tqdm(data_collection)):
+            # for iteration, data in enumerate(tqdm.tqdm(data_collection)):
                 
                 if opt.conf.finetune_gdn :
                     # continuely finetue the gdn for each specific image

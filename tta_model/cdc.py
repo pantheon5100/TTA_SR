@@ -237,7 +237,7 @@ class HourGlassNetMultiScaleInt(nn.Module):
                 HG_block = HourGlassBlock(res_type=res_type, n_mid=n_mid, n_tail=0)
             setattr(self, 'HG_%d' % i, HG_block)
 
-    def forward(self, x):
+    def forward(self, x, return_all=False):
         x = self.conv_in(x)
         SR_map = []
         result = []
@@ -288,7 +288,11 @@ class HourGlassNetMultiScaleInt(nn.Module):
                     SR_map.append(torch.mean(corner_map, dim=1, keepdim=True))
                 # result.append(sr_feature[:,0:1,:,:])
 
-        return result, SR_map
+        if return_all:
+            return result, SR_map
+        else:
+            return result[-1]
+
 
 
 

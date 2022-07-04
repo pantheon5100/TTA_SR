@@ -35,6 +35,8 @@ class DataGenerator(Dataset):
         # Default shapes
         self.g_input_shape = conf.input_crop_size
         self.d_input_shape = int(conf.input_crop_size * conf.scale_factor_downsampler)
+        # self.g_input_shape = 108
+        # self.d_input_shape = 48
         
         # Read input image
         input_image = read_image(conf.input_image_path)

@@ -103,6 +103,7 @@ class DualSR:
         self.rec_LR = self.G_DN(self.fake_HR)
         # Backward path
         self.fake_LR = self.G_DN(self.real_HR)
+        import ipdb; ipdb.set_trace()
         self.rec_HR = self.G_UP(self.fake_LR)
         
         # Losses

@@ -62,7 +62,8 @@ class options:
         SUPPORT_SOURCE_MODEL = [
             "swinir",
             "rcan",
-            "edsr"
+            "edsr",
+            "cdc"
         ]
         self.parser.add_argument('--source_model', default='swinir',
                                  choices=SUPPORT_SOURCE_MODEL, help='path to one specific image file')
