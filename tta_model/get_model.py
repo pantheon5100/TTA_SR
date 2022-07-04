@@ -5,6 +5,7 @@ import torch
 from tta_model.network_swinir import define_model
 from tta_model.rcan import RCAN
 from tta_model.edsr import EDSR
+from tta_model.cdc import HourGlassNetMultiScaleInt
 
 
 def get_model(conf):
@@ -76,6 +77,25 @@ def get_model(conf):
         return G_UP
 
 
+
+    elif conf.source_model == "cdc":
+        # cdc_config = Namespace()
+        # cdc_config.in_ch = 3
+        # cdc_config.out_ch = 3
+        # cdc_config.n_HG = 6
+        # cdc_config.model = 'HGSR-MHR'
+                               
+        G_UP = HourGlassNetMultiScaleInt(in_nc=3, out_nc=3, upscale=2,
+                                   nf=64, res_type='res', n_mid=2,
+                                   n_HG=6, inter_supervis=True)
+        # G_UP = HourGlassNet(in_nc=3, out_nc=3, upscale=2) 
+        # import ipdb; ipdb.set_trace();
+        state_dict = torch.load("./tta_pretrained/CDC_X2_Model/HGSR-MHR_X2_CDC.pth") 
+        # G_UP.load_state_dict(state_dict=state_dict, strict=False)
+        G_UP.load_state_dict(state_dict=state_dict["state_dict"])
+        
+        G_UP.cuda()
+        return G_UP
 
 
 

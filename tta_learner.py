@@ -7,7 +7,7 @@ class Learner:
     lambda_update_freq = 200
     bic_loss_to_start_change = 0.4
     lambda_bicubic_decay_rate = 100.
-    update_l_rate_freq = 750
+    
     update_l_rate_rate = 4.
     lambda_sparse_end = 5
     lambda_centralized_end = 1
@@ -17,7 +17,7 @@ class Learner:
         self.bic_loss_counter = 0
         self.similar_to_bicubic = False  # Flag indicating when the bicubic similarity is achieved
         self.insert_constraints = True  # Flag is switched to false once constraints are added to the loss
-               
+        self.update_l_rate_freq = model.conf.lr_G_DN_step_size
         self.G_UP_lr_scheduler = torch.optim.lr_scheduler.StepLR(model.optimizer_G_UP, step_size=model.conf.lr_G_UP_step_size, gamma=0.5)
 
     def update(self, iteration: int, model: TTASR):

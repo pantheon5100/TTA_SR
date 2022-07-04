@@ -873,9 +873,11 @@ PRETRAINED_MODEL = {
 
     # 003 Real-World Image Super-Resolution (use --tile 400 if you run out-of-memory)
     # (middle size)
-    "realSR_M": "003_realSR_BSRGAN_DFO_s64w8_SwinIR-M_x4_GAN.pth",
+    # "realSR_M_2": "003_realSR_BSRGAN_DFO_s64w8_SwinIR-M_x2_GAN.pth",
+    "realSR_M_2": "003_realSR_BSRGAN_DFO_s64w8_SwinIR-M_x2_PSNR.pth",
+
     # (larger size + trained on more datasets)
-    "realSR_L": "003_realSR_BSRGAN_DFOWMFC_s64w8_SwinIR-L_x4_GAN.pth",
+    "realSR_L": "003_realSR_BSRGAN_DFOWMFC_s64w8_SwinIR-L_x2_GAN.pth",
 }
 
 def define_model(task, scale, model_type, training_patch_size=48, large_model=False)-> SwinIR:
@@ -906,20 +908,22 @@ def define_model(task, scale, model_type, training_patch_size=48, large_model=Fa
         param_key_g = 'params'
 
     # 003 real-world image sr
-    elif task == 'realSR':
-        if not large_model:
-            # use 'nearest+conv' to avoid block artifacts
-            model = SwinIR(upscale=scale, in_chans=3, img_size=64, window_size=8,
-                        img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
-                        mlp_ratio=2, upsampler='nearest+conv', resi_connection='1conv')
-        else:
-            # larger model size; use '3conv' to save parameters and memory; use ema for GAN training
-            model = SwinIR(upscale=scale, in_chans=3, img_size=64, window_size=8,
-                        img_range=1., depths=[6, 6, 6, 6, 6, 6, 6, 6, 6], embed_dim=240,
-                        num_heads=[8, 8, 8, 8, 8, 8, 8, 8, 8],
-                        mlp_ratio=2, upsampler='nearest+conv', resi_connection='3conv')
+    elif task == 'realSR_M':
+        
+        # use 'nearest+conv' to avoid block artifacts
+        model = SwinIR(upscale=scale, in_chans=3, img_size=64, window_size=8,
+                    img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
+                    mlp_ratio=2, upsampler='nearest+conv', resi_connection='1conv')
         param_key_g = 'params_ema'
-
+        import ipdb; ipdb.set_trace()
+    
+    elif task == 'realSR_L':
+        # larger model size; use '3conv' to save parameters and memory; use ema for GAN training
+        model = SwinIR(upscale=scale, in_chans=3, img_size=64, window_size=8,
+                    img_range=1., depths=[6, 6, 6, 6, 6, 6, 6, 6, 6], embed_dim=240,
+                    num_heads=[8, 8, 8, 8, 8, 8, 8, 8, 8],
+                    mlp_ratio=2, upsampler='nearest+conv', resi_connection='3conv')
+        param_key_g = 'params_ema'
     else:
         raise NotImplementedError
     

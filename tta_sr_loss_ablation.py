@@ -127,6 +127,10 @@ class TTASR:
         self.UP_psnrs = [] if self.gt_img is not None else None
         self.DN_psnrs = [] if self.gt_kernel is not None else None
 
+    def reset_ddn(self):
+        self.G_DN = networks.Generator_DN(downsample_stride=self.conf.scale_factor).cuda()
+        self.optimizer_D_DN = torch.optim.Adam(self.D_DN.parameters(), lr=self.conf.lr_D_DN, betas=(self.conf.beta1, 0.999))
+
     def train(self, data):
         self.G_UP.train()
 
@@ -136,6 +140,8 @@ class TTASR:
         loss_train_G_DN = self.train_G_DN()
         loss_train_G_UP = self.train_G_UP()
         loss_train_D_DN = self.train_D_DN()      
+
+
 
         loss.update(loss_train_G_DN)
         loss.update(loss_train_G_UP)
@@ -381,6 +387,46 @@ class TTASR:
                 #     _, _, h_old, w_old = self.in_img_t.size()
                 #     self.UP_psnrs += [util.cal_y_psnr(self.upsampled_img, self.gt_img[:h_old * self.conf.scale_factor,
                 #                                     :w_old * self.conf.scale_factor, ...], border=self.conf.scale_factor)]
+
+
+            elif self.conf.source_model == "cdc":
+                psize = 64
+                overlap = 256
+                gpus = 1
+                device = "cuda"
+
+
+                blocks = util.tensor_divide(self.in_img_t, psize, overlap)
+                blocks = torch.cat(blocks, dim=0)
+                results = []
+
+                iters = blocks.shape[0] # // opt.gpus if blocks.shape[0] % opt.gpus == 0 else blocks.shape[0] // opt.gpus + 1
+                for idx in range(iters):
+                    if idx + 1 == iters:
+                        input = blocks[idx * gpus:]
+                    else:
+                        input = blocks[idx * gpus : (idx + 1) * gpus]
+                    hr_var = input.to(device)
+                    sr_var, SR_map = self.G_UP(hr_var)
+
+                    if isinstance(sr_var, list) or isinstance(sr_var, tuple):
+                        sr_var = sr_var[-1]
+
+                    results.append(sr_var.to('cpu'))
+                    # print('Processing Image: %d Part: %d / %d'
+                    #     % (batch + 1, idx + 1, iters), end='\r')
+                    # sys.stdout.flush()
+
+                results = torch.cat(results, dim=0)
+                # import ipdb; ipdb.set_trace()
+
+                gt_img = torch.tensor(self.gt_img.transpose((2, 0, 1))) / 255.
+                gt_img = gt_img.unsqueeze(0)
+
+                sr_img = util.tensor_merge(results, gt_img, psize * self.conf.scale_factor, overlap * self.conf.scale_factor)
+
+                self.UP_psnrs += [util.YCbCr_psnr(sr_img, gt_img, scale=self.conf.scale_factor, peak=1.)]
+
 
             else:
                 # import ipdb; ipdb.set_trace()

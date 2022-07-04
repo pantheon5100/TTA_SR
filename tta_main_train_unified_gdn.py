@@ -5,11 +5,11 @@ import json
 import os
 import shutil
 from datetime import datetime
-from turtle import forward
+# from turtle import forward
 
 import ipdb
 import numpy as np
-# import setGPU
+import setGPU
 import torch
 import torch.nn.functional as F
 import tqdm
@@ -51,6 +51,8 @@ def train_and_eval(conf):
         "PSNR": 0,
     }
     psnr_record = []
+
+    
     
     for iteration, data in enumerate(tqdm.tqdm(data_collection)):
         if iteration == 0:
@@ -97,7 +99,7 @@ def train_and_eval(conf):
     return model.UP_psnrs[-1]
 
 def main():
-    torch.set_num_threads(5)
+    torch.set_num_threads(2)
 
     opt = options()
 
@@ -151,7 +153,7 @@ def main():
             conf.img_idx = img_idx
             
             model.read_image(conf)
-            model.eval(0)
+            model.eval(0, save_result=True)
             with open(os.path.join(conf.experimentdir, "psnr.txt"), "a") as f:
                 #import ipdb; ipdb.set_trace()
                 f.write(
@@ -422,7 +424,7 @@ def main():
             learner = Learner(model)
 
             # generate dataset first
-            data_dir = f"generating_data/data_{conf.abs_img_name}_{conf.input_crop_size}_{conf.num_iters}.pth"
+            data_dir = f"generating_data/data_{conf.abs_img_name}_{conf.batch_size}_{conf.input_crop_size}_{conf.num_iters}.pth"
             os.makedirs(os.path.dirname(data_dir), exist_ok=True)
 
             data_collection = []
