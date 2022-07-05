@@ -96,6 +96,7 @@ class options:
 
         self.conf = self.parser.parse_args()
         
+        self.conf.scale_factor_downsampler = 1/self.conf.scale_factor
         # if not os.path.exists(self.conf.output_dir):
         #     os.makedirs(self.conf.output_dir)
 

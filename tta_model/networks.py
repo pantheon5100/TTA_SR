@@ -55,9 +55,9 @@ class Generator_DN(nn.Module):
             if struct[layer] == 3: # Downsample on the first layer with kernel_size=1
                 feature_block += [nn.Conv2d(in_channels=features, out_channels=features, kernel_size=struct[layer], stride=downsample_stride, bias=False)]
             else:
-                feature_block += [nn.Conv2d(in_channels=features, out_channels=features, kernel_size=struct[layer], bias=False, padding=first_layer_padding)]
+                feature_block += [nn.Conv2d(in_channels=features, out_channels=features, kernel_size=struct[layer], bias=False)]
         self.feature_block = nn.Sequential(*feature_block)
-        self.final_layer = nn.Conv2d(in_channels=features, out_channels=1, kernel_size=struct[-1], bias=False, padding=first_layer_padding)
+        self.final_layer = nn.Conv2d(in_channels=features, out_channels=1, kernel_size=struct[-1], bias=False)
 
     def forward(self, x):
         # Swap axis of RGB image for the network to get a "batch" of size = 3 rather the 3 channels
@@ -120,3 +120,4 @@ def weights_init_G_UP(m):
         nn.init.kaiming_normal_(m.weight.data, a=0, mode='fan_in', nonlinearity='relu')
         if hasattr(m.bias, 'data'):
             m.bias.data.fill_(0)
+

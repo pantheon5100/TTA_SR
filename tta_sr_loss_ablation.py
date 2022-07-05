@@ -42,9 +42,9 @@ class TTASR:
         self.G_UP = get_model(conf)
         self.D_DN = networks.Discriminator_DN().cuda()
         # 2. Define the down sample network
-        # self.G_DN = networks.Generator_DN(downsample_stride=conf.scale_factor, first_layer_padding="same").cuda()
-        self.G_DN = networks.Generator_DN(
-            downsample_stride=conf.scale_factor).cuda()
+        self.G_DN = networks.Generator_DN(downsample_stride=conf.scale_factor, first_layer_padding="same").cuda()
+        # self.G_DN = networks.Generator_DN(
+        #     downsample_stride=conf.scale_factor, first_layer_padding=5).cuda()
 
         # Losses
         self.criterion_gan = loss.GANLoss().cuda()
@@ -306,6 +306,7 @@ class TTASR:
             pred_fake = self.D_DN(self.fake_LR.detach())
             loss_D_fake = self.criterion_gan(pred_fake, False)
             # Real
+            import ipdb; ipdb.set_trace()
             pred_real = self.D_DN(util.shave_a2b(self.real_LR, self.fake_LR))
             loss_D_real = self.criterion_gan(pred_real, True)
             # Combined loss and calculate gradients
