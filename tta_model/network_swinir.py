@@ -893,7 +893,12 @@ def define_model(task, scale, model_type, training_patch_size=48, large_model=Fa
         open(model_path, 'wb').write(r.content)
 
     # 001 classical image sr
-    if task == 'classicalSR_s1':
+    if task == 'classicalSR_s1' or task == 'classicalSR_s2':
+        if task == 'classicalSR_s1':
+            training_patch_size = 48
+        else:
+            training_patch_size = 64
+            
         model = SwinIR(upscale=scale, in_chans=3, img_size=training_patch_size, window_size=8,
                     img_range=1., depths=[6, 6, 6, 6, 6, 6], embed_dim=180, num_heads=[6, 6, 6, 6, 6, 6],
                     mlp_ratio=2, upsampler='pixelshuffle', resi_connection='1conv')

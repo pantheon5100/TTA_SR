@@ -1,6 +1,6 @@
 import torch
 import loss
-import networks
+import tta_model.networks as networks
 import util
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec

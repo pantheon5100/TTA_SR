@@ -420,6 +420,9 @@ def main():
             model = TTASR(conf)
             model.G_DN.load_state_dict(pretrained_GDN_state_dict)
             
+            # validation check
+            model.eval(0)
+            
             dataloader = create_dataset(conf)
             learner = Learner(model)
 

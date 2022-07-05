@@ -17,4 +17,6 @@ CUDA_VISIBLE_DEVICES=1 python tta_main_train_unified_gdn.py \
         --lr_G_UP 0.00002\
         --lr_G_DN 0.001 \
         --lr_G_UP_step_size 1000\
+        --g_input_shape 108 \
+        --d_input_shape 48 \
         --finetune_gdn

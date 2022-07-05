@@ -23,6 +23,10 @@ class options:
         self.parser.add_argument('--scale_factor', type=int, default=2, help='The upscaling scale factor')
         self.parser.add_argument('--scale_factor_downsampler', type=float, default=0.5, help='scale factor for downsampler')
         
+        # Input size configuration 
+        self.parser.add_argument('--g_input_shape', type=int, default=48, help='input shape for g')
+        self.parser.add_argument('--d_input_shape', type=int, default=24, help='input shape for d')
+        
         #Lambda Parameters
         self.parser.add_argument('--lambda_cycle', type=int, default=5, help='lambda parameter for cycle consistency loss')
         self.parser.add_argument('--lambda_interp', type=int, default=2, help='lambda parameter for masked interpolation loss')
@@ -71,6 +75,7 @@ class options:
         # for swinir source model
         SUPPORT_SWINIR_MODE=[
             "classicalSR_s1",
+            "classicalSR_s2",
             "lightweightSR",
             "realSR_M", 
         ]

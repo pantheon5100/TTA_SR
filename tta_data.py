@@ -33,10 +33,10 @@ class DataGenerator(Dataset):
         print('*' * 60 + '\nPreparing data ...')
         
         # Default shapes
-        self.g_input_shape = conf.input_crop_size
-        self.d_input_shape = int(conf.input_crop_size * conf.scale_factor_downsampler)
-        # self.g_input_shape = 108
-        # self.d_input_shape = 48
+        # self.g_input_shape = conf.input_crop_size
+        # self.d_input_shape = int(conf.input_crop_size * conf.scale_factor_downsampler)
+        self.g_input_shape = conf.g_input_shape
+        self.d_input_shape = conf.d_input_shape
         
         # Read input image
         input_image = read_image(conf.input_image_path)
@@ -129,9 +129,11 @@ class DataGenerator_ALLIMG(Dataset):
         print('*' * 60 + '\nPreparing data ...')
         
         # Default shapes
-        self.g_input_shape = conf.input_crop_size
-        self.d_input_shape = int(conf.input_crop_size * conf.scale_factor_downsampler)
-
+        # self.g_input_shape = conf.input_crop_size
+        # self.d_input_shape = int(conf.input_crop_size * conf.scale_factor_downsampler)
+        self.g_input_shape = conf.g_input_shape
+        self.d_input_shape = conf.d_input_shape
+        
         # Read input image
         img_dir_list = os.listdir(conf.input_dir)
         self.num_imgs = len(img_dir_list)
@@ -141,9 +143,10 @@ class DataGenerator_ALLIMG(Dataset):
         self.in_rows, self.in_cols = [], []
         self.crop_indices_for_g, self.crop_indices_for_d = [], []
         
-        # data_dir = ""
+        
+
         data_dir = "imagenet_data.pt"
-        if data_dir != "":
+        if os.path.exists(data_dir):
             image_data = torch.load(data_dir)
             self.all_img = image_data["all_img"]
             self.in_rows = image_data["in_rows"]
