@@ -7,9 +7,8 @@ import shutil
 from datetime import datetime
 # from turtle import forward
 
-import ipdb
 import numpy as np
-import setGPU
+# import setGPU
 import torch
 import torch.nn.functional as F
 import tqdm
@@ -474,7 +473,10 @@ def main():
 
                 loss = model.train(data)
                 learner.update(iteration, model)
-
+                
+                # reset ddn
+                if (iteration+1) % 1000 == 0:
+                    model.reset_ddn()
 
                 if ((iteration+1) % conf.model_save_iter == 0) or ((iteration+1) % model.conf.switch_iters == 0):
                     model.save_model(iteration+1)
@@ -550,6 +552,7 @@ def main():
 
         f.write(f"Average PSNR: {np.mean(all_psnr)}.\n")
     print(f"Average PSNR for {opt.conf.input_dir}: {np.mean(all_psnr)}")
+    wandb.run.summary[f"average_psnr"] = np.mean(all_psnr)
 
 if __name__ == '__main__':
     main()

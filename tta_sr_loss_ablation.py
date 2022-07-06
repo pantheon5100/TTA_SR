@@ -1,20 +1,17 @@
 import os
 
-import imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import wandb
 from matplotlib.gridspec import GridSpec
 from PIL import Image
 from scipy.io import loadmat
 
 import loss
 import tta_util as util
-from torch_sobel import Sobel
+import tta_util_calculate_psnr_ssim as util_calculate_psnr_ssim
 from tta_model import networks
 from tta_model.get_model import get_model
-from tta_model.network_swinir import define_model
 
 
 def read_image(path):
@@ -195,6 +192,7 @@ class TTASR:
                 # import ipdb; ipdb.set_trace()
                 self.fake_HR = self.G_UP(self.real_LR)
                 self.rec_LR = self.G_DN(self.fake_HR)
+                # import ipdb; ipdb.set_trace()
                 loss_cycle_forward = self.criterion_cycle(self.rec_LR, util.shave_a2b(
                     self.real_LR, self.rec_LR)) * self.conf.lambda_cycle
 
@@ -306,7 +304,7 @@ class TTASR:
             pred_fake = self.D_DN(self.fake_LR.detach())
             loss_D_fake = self.criterion_gan(pred_fake, False)
             # Real
-            import ipdb; ipdb.set_trace()
+            # import ipdb; ipdb.set_trace()
             pred_real = self.D_DN(util.shave_a2b(self.real_LR, self.fake_LR))
             loss_D_real = self.criterion_gan(pred_real, True)
             # Combined loss and calculate gradients
@@ -380,6 +378,9 @@ class TTASR:
                     _, _, h_old, w_old = self.in_img_t.size()
                     self.UP_psnrs = [util.cal_y_psnr(self.upsampled_img, self.gt_img[:h_old * self.conf.scale_factor,
                                                                                      :w_old * self.conf.scale_factor, ...], border=self.conf.scale_factor)]
+                    # self.UP_ssims = [util.util_calculate_psnr_ssim(self.upsampled_img, self.gt_img[:h_old * self.conf.scale_factor,
+                    #                                                                  :w_old * self.conf.scale_factor, ...], border=self.conf.scale_factor)]
+
 
             elif self.conf.source_model == "edsr" or self.conf.source_model == "rcan":
                 in_img_t = self.in_img_t
@@ -577,3 +578,43 @@ class TTASR:
             self.conf.model_save_dir, f"ckpt_GDN_{iteration+1}.pth"))
         torch.save(self.D_DN.state_dict(), os.path.join(
             self.conf.model_save_dir, f"ckpt_DDN_{iteration+1}.pth"))
+
+
+
+
+
+
+def test(img_lq, model, args, window_size):
+    args = {
+        "tile": 48,
+        "tile_overlap": 8,
+    }
+    if args["tile"] is None:
+        # test the image as a whole
+        output = model(img_lq)
+    else:
+        # test the image tile by tile
+        b, c, h, w = img_lq.size()
+        tile = min(args["tile"], h, w)
+        assert tile % window_size == 0, "tile size should be a multiple of window_size"
+        tile_overlap = args["tile_overlap"]
+        sf = args["scale"]
+
+        stride = tile - tile_overlap
+        h_idx_list = list(range(0, h-tile, stride)) + [h-tile]
+        w_idx_list = list(range(0, w-tile, stride)) + [w-tile]
+        E = torch.zeros(b, c, h*sf, w*sf).type_as(img_lq)
+        W = torch.zeros_like(E)
+
+        for h_idx in h_idx_list:
+            for w_idx in w_idx_list:
+                in_patch = img_lq[..., h_idx:h_idx+tile, w_idx:w_idx+tile]
+                out_patch = model(in_patch)
+                out_patch_mask = torch.ones_like(out_patch)
+
+                E[..., h_idx*sf:(h_idx+tile)*sf, w_idx*sf:(w_idx+tile)*sf].add_(out_patch)
+                W[..., h_idx*sf:(h_idx+tile)*sf, w_idx*sf:(w_idx+tile)*sf].add_(out_patch_mask)
+        output = E.div_(W)
+
+    return output
+

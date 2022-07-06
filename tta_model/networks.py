@@ -46,8 +46,8 @@ class Generator_DN(nn.Module):
         struct = [7, 5, 3, 1, 1, 1]
         self.G_kernel_size = 13
         # First layer
-        self.first_layer = nn.Conv2d(in_channels=1, out_channels=features, kernel_size=struct[0], stride=1, bias=False, padding=first_layer_padding)
-        # self.first_layer = nn.Conv2d(in_channels=1, out_channels=features, kernel_size=struct[0], stride=1, bias=False)
+        # self.first_layer = nn.Conv2d(in_channels=1, out_channels=features, kernel_size=struct[0], stride=1, bias=False, padding=first_layer_padding)
+        self.first_layer = nn.Conv2d(in_channels=1, out_channels=features, kernel_size=struct[0], stride=1, bias=False)
         
 
         feature_block = []  # Stacking intermediate layer
