@@ -21,7 +21,9 @@ class Learner:
         self.G_UP_lr_scheduler = torch.optim.lr_scheduler.StepLR(model.optimizer_G_UP, step_size=model.conf.lr_G_UP_step_size, gamma=0.5)
 
     def update(self, iteration: int, model: TTASR):
-        self.G_UP_lr_scheduler.step()
+
+        if iteration >= model.conf.gdn_iters:
+            self.G_UP_lr_scheduler.step()
         
 
         #     return

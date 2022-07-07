@@ -42,6 +42,9 @@ class options:
         
         # Iterations
         self.parser.add_argument('--num_iters', type=int, default=2000, help='number of training iterations')
+        self.parser.add_argument('--gdn_iters', type=int, default=3000, help='number of GDN training iterations')
+        self.parser.add_argument('--gup_iters', type=int, default=1000, help='number of GUP training iterations')
+        
         self.parser.add_argument('--switch_iters', type=int, default=1000, help='number of training iterations')
         self.parser.add_argument('--eval_iters', type=int, default=100, help='for debug purpose')
         self.parser.add_argument('--plot_iters', type=int, default=200, help='for debug purpose')
@@ -103,30 +106,35 @@ class options:
 
 
     def get_config(self, img_name):
-        self.conf.abs_img_name = os.path.splitext(img_name)[0]
-        self.conf.input_image_path = os.path.join(self.conf.input_dir, img_name)
-        self.conf.kernel_path = os.path.join(self.conf.kernel_dir, self.conf.abs_img_name + '.mat') if self.conf.kernel_dir != '' else None
+        self.conf.update(
+            {"abs_img_name": os.path.splitext(img_name)[0],
+            "input_image_path": os.path.join(self.conf.input_dir, img_name),
+            "kernel_path": os.path.join(self.conf.kernel_dir, self.conf.abs_img_name + '.mat') if self.conf.kernel_dir != '' else None
+            
+            }, allow_val_change=True)
+        # self.conf.input_image_path = os.path.join(self.conf.input_dir, img_name)
+        # self.conf.kernel_path = os.path.join(self.conf.kernel_dir, self.conf.abs_img_name + '.mat') if self.conf.kernel_dir != '' else None
         # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) if self.conf.gt_dir != '' else None
 
         if "Set5" in self.conf.gt_dir:
             # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png") if self.conf.gt_dir != '' else None
-            self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name)
+            gt_path = os.path.join(self.conf.gt_dir, img_name)
         
         elif "Manga109" in self.conf.gt_dir:
-            self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png")
+            gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png")
         elif "my_RealSR" in self.conf.gt_dir:
-            self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) 
+            gt_path = os.path.join(self.conf.gt_dir, img_name) 
         
         else:
             # for set14 and other dataset
-            self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) 
+            gt_path = os.path.join(self.conf.gt_dir, img_name) 
             
 
-        # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) if self.conf.gt_dir != '' else None
+        self.conf.update({"gt_path":os.path.join(self.conf.gt_dir, img_name) if self.conf.gt_dir != '' else None}, allow_val_change=True)
 
         print('*' * 60)
         print('input image: \'%s\'' %self.conf.input_image_path)
-        print('grand-truth image: \'%s\'' %self.conf.gt_path)
+        print('grand-truth image: \'%s\'' %gt_path)
         # print('grand-truth kernel: \'%s\'' %self.conf.kernel_path)
         return self.conf
 

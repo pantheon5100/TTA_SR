@@ -14,7 +14,7 @@ CUDA_VISIBLE_DEVICES=6 python tta_main_train_unified_gdn.py \
         --input_crop_size 48 \
         --scale_factor 2 \
         --switch_iters 3000 \
-        --eval_iters 10 \
+        --eval_iters 20 \
         --lr_G_UP 0.00002\
         --lr_G_DN 0.001 \
         --lr_G_UP_step_size 1000\

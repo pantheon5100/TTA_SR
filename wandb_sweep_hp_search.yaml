@@ -1,14 +1,47 @@
-program: tta_main_train_unified_gdn.py
+program: tta_main_train_unified_gdn_for_wandb_sweep.py
 method: bayes
 name: hyper_parameter_search
-project: TTA_SR
+project: TTA_SR-reproduce
 entity: kaistssl
 metric:
   name: average_psnr
-  goal: maxmize
+  goal: maximize
 parameters:
-  learning_rate:
-    min: 0.0001
-    max: 0.1
-  optimizer:
-    values: ["adam", "sgd"]
+  input_dir:
+    value: "../dataset/my_RealSR/Test/2_6/LR"
+  gt_dir:
+    value: "../dataset/my_RealSR/Test/2_6/HR"
+  output_dir:
+    value: "wandb_sweep"
+  pretrained_gdn:
+    value: "random_init"
+  training_strategy:
+    value: "11001"
+  input_crop_size:
+    value: 48
+  scale_factor:
+    value: 2
+  eval_iters:
+    value: 20
+  lr_G_UP_step_size:
+    value: 1000
+  g_input_shape:
+    value: 48
+  d_input_shape:
+    value: 24
+  gup_iters:
+    distribution: "int_uniform"
+    min: 100
+    max: 1000
+  gdn_iters:
+    distribution: "int_uniform"
+    min: 100
+    max: 3000
+  lr_G_UP:
+    distribution: uniform
+    min: 1e-15
+    max: 1e-5
+  lr_G_DN:
+    distribution: uniform
+    min: 1e-5
+    max: 1e-1
