@@ -8,7 +8,7 @@ from datetime import datetime
 # from turtle import forward
 
 import numpy as np
-import setGPU
+# import setGPU
 import torch
 import torch.nn.functional as F
 import tqdm
@@ -85,20 +85,70 @@ def main():
         )
         opt.conf = wandb.config
         
+        unified_gdn = True
+        if unified_gdn:
+            opt_train_gdn = copy.deepcopy(opt)
+            opt.conf.update({"lr_G_DN_step_size": int(opt.conf.pretrained_gdn_num_iters/4)}, allow_val_change=True)
+
+            # if opt.conf.pretrained_gdn_with_imgenet:
+            #     opt_train_gdn.conf.input_dir = '/workspace/ssd1_2tb/nax_projects/super_resolution/dataset/imagenet_selected'
+            
+            model = TTASR(opt_train_gdn.conf)
+            # use all image to train, every batch contains all image
+            from tta_data import create_dataset_for_image_agnostic_gdn
+            dataloader = create_dataset_for_image_agnostic_gdn(opt_train_gdn.conf)
+            learner = Learner(model)
+
+
+            # freeze GUP
+            model.train_G_DN_switch = True
+            model.train_G_UP_switch = False
+            model.reshap_train_data = True
+
+            util.set_requires_grad([model.G_UP], False)
+            # Turn on gradient calculation for G_DN
+            util.set_requires_grad([model.G_DN], True)
+
+            # train GDN
+            for iteration, data in enumerate(tqdm.tqdm(dataloader)):
+
+                loss = model.train(data)
+
+                if (iteration+1) % opt_train_gdn.conf.eval_iters == 0:
+                    loss_log = {}
+                    for key, val in loss.items():
+                        key = f"train_GDN/{key}"
+                        loss_log[key] = val
+
+                    loss_log["train_GDN/iteration"] = iteration
+                    wandb.log(loss_log)
+
+                learner.update(iteration, model)
+
+            # save the pretrained GDN
+            torch.save(model.G_DN.state_dict(), os.path.join(
+                opt_train_gdn.conf.model_save_dir, "pretrained_GDN.ckpt"))
+
+            pretrained_GDN_state_dict = model.G_DN.state_dict()
+
+
 
         # Run DualSR on all images in the input directory
         # for img_name in os.listdir(opt.conf.input_dir):
         img_list = []
         all_psnr = []
         for img_idx, img_name in enumerate(os.listdir(opt.conf.input_dir)):
-            
 
-            conf = opt.get_config(img_name)
+
+            conf = opt.get_config(img_name, wandb_config=True)
             conf.update({"img_idx": img_idx}, allow_val_change=True)
-         
 
-            
+
+
             model = TTASR(conf)
+            if unified_gdn:
+                model.G_DN.load_state_dict(pretrained_GDN_state_dict)
+                
             model.read_image(model.conf)
             # validation check
             model.eval(0)

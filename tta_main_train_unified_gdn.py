@@ -101,6 +101,10 @@ def main():
     torch.set_num_threads(2)
 
     opt = options()
+    opt.conf.num_iters = opt.conf.gdn_iters + opt.conf.gup_iters
+    opt.conf.switch_iters = opt.conf.gdn_iters
+    opt.conf.lr_G_UP_step_size = opt.conf.gup_iters
+    opt.conf.lr_G_DN_step_size = int(opt.conf.gdn_iters/4)
 
     #############################################################################################
     #############################################################################################
@@ -108,7 +112,7 @@ def main():
     time_stamp = datetime.now().strftime("%Y%m%d%H%M%S")
     # ipdb.set_trace()
     data_set_name = opt.conf.gt_dir.split("/")[-2]
-    run_name = f"{opt.conf.output_dir}-{opt.conf.source_model}-{data_set_name}-{opt.conf.training_strategy}"
+    run_name = f"{opt.conf.output_dir}-{opt.conf.source_model}-{data_set_name}-x{opt.conf.scale_factor}-{opt.conf.training_strategy}"
     if opt.conf.pretrained_gdn != "":
         run_name += "-use_pretrained_gdn"
     experimentdir = f"./log/{run_name}/time_{time_stamp}"
@@ -178,15 +182,13 @@ def main():
     else:
         # wandb logger
         wandb.init(
-            project=f"TTA_SR-reproduce",
-            entity="kaistssl",
+            project=opt.conf.project,
+            entity=opt.conf.entity,
             name=run_name,
             config=opt.conf,
             dir=opt.conf.experimentdir,
             save_code=True,
         )
-        opt.conf = wandb.config
-        
         
         
          
@@ -321,21 +323,29 @@ def main():
                 "PSNR": 0,
             }
             psnr_record = []
+
+            model.train_G_DN_switch = True
+            model.train_G_UP_switch = False
+            model.train_D_DN_switch = True
             for iteration, data in enumerate(tqdm.tqdm(dataloader)):
             
             # for iteration, data in enumerate(tqdm.tqdm(data_collection)):
                 
                 if opt.conf.finetune_gdn :
                     # continuely finetue the gdn for each specific image
-                    if iteration == 0:
-                        model.train_G_DN_switch = True
-                        model.train_G_UP_switch = False
-                        model.train_D_DN_switch = True
 
-                    if (iteration+1) % model.conf.switch_iters == 0:
+                    
+                    if iteration == model.conf.gdn_iters:
                         model.train_G_UP_switch = not model.train_G_UP_switch
                         model.train_G_DN_switch = not model.train_G_DN_switch
                         model.train_D_DN_switch = False
+
+                    # iterative finetune the gup
+                    # if (iteration+1) % model.conf.switch_iters == 0:
+                    #     model.train_G_UP_switch = not model.train_G_UP_switch
+                    #     model.train_G_DN_switch = not model.train_G_DN_switch
+                    #     model.train_D_DN_switch = False
+                    
                 else:
                     if iteration == 0:
                         model.train_G_DN_switch = False

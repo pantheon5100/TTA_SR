@@ -10,7 +10,8 @@ from tta_util import create_gradient_map, im2tensor, create_probability_map, nn_
 
 def create_dataset(conf):
     dataset = DataGenerator(conf)
-    dataloader = DataLoader(dataset, batch_size=conf.batch_size, shuffle=False, pin_memory=True, num_workers=4)
+    # dataloader = DataLoader(dataset, batch_size=conf.batch_size, shuffle=False, pin_memory=True, num_workers=4)
+    dataloader = DataLoader(dataset, batch_size=conf.batch_size, shuffle=False, pin_memory=True)
     return dataloader
 
 def read_image(path: str) -> np.array:
@@ -35,16 +36,22 @@ class DataGenerator(Dataset):
         # Default shapes
         # self.g_input_shape = conf.input_crop_size
         # self.d_input_shape = int(conf.input_crop_size * conf.scale_factor_downsampler)
-        self.g_input_shape = conf.g_input_shape
-        self.d_input_shape = conf.d_input_shape
+        # self.g_input_shape = conf.input_crop_size * conf.scale_factor
+        # self.d_input_shape = conf.input_crop_size
+        self.g_input_shape = 48
+        self.d_input_shape = 24
         
         # Read input image
         input_image = read_image(conf.input_image_path)
         self.input_image = input_image / 255. if conf.source_model=="swinir" else input_image
         
-        self.shave_edges(scale_factor=conf.scale_factor_downsampler, real_image=False)
+        self.shave_edges(scale_factor=1/conf.scale_factor, real_image=False)
 
         self.in_rows, self.in_cols = self.input_image.shape[0:2]
+        
+        
+        if self.in_rows < self.g_input_shape:
+            self.g_input_shape = self.in_rows
 
         # Create prob map for choosing the crop
         self.crop_indices_for_g, self.crop_indices_for_d = self.make_list_of_crop_indices(conf=conf)
@@ -56,7 +63,7 @@ class DataGenerator(Dataset):
         """Get a crop for both G and D """
         g_in = self.next_crop(for_g=True, idx=idx)
         d_in = self.next_crop(for_g=False, idx=idx)
-        d_bq = imresize(im=d_in, scale_factor=int(1/self.conf.scale_factor_downsampler), kernel='cubic')
+        d_bq = imresize(im=d_in, scale_factor=int(self.conf.scale_factor), kernel='cubic')
         
         # import ipdb; ipdb.set_trace()
         return {'HR':im2tensor(g_in).squeeze(), 'LR':im2tensor(d_in).squeeze(), 'LR_bicubic':im2tensor(d_bq).squeeze()}
@@ -74,7 +81,7 @@ class DataGenerator(Dataset):
 
     def make_list_of_crop_indices(self, conf):
         iterations = conf.num_iters * conf.batch_size
-        prob_map_big, prob_map_sml = self.create_prob_maps(scale_factor=conf.scale_factor_downsampler)
+        prob_map_big, prob_map_sml = self.create_prob_maps(scale_factor=1/conf.scale_factor)
         crop_indices_for_g = np.random.choice(a=len(prob_map_sml), size=iterations, p=prob_map_sml)
         crop_indices_for_d = np.random.choice(a=len(prob_map_big), size=iterations, p=prob_map_big)
         return crop_indices_for_g, crop_indices_for_d
@@ -133,6 +140,8 @@ class DataGenerator_ALLIMG(Dataset):
         # self.d_input_shape = int(conf.input_crop_size * conf.scale_factor_downsampler)
         self.g_input_shape = conf.g_input_shape
         self.d_input_shape = conf.d_input_shape
+        self.g_input_shape = 48
+        self.d_input_shape = 24
         
         # Read input image
         img_dir_list = os.listdir(conf.input_dir)
@@ -165,7 +174,7 @@ class DataGenerator_ALLIMG(Dataset):
             # Crop 10 pixels to avoid boundaries effects in synthetically generated examples
             img = img[10:-10, 10:-10, :]
             # Crop pixels for the shape to be divisible by the scale factor
-            sf = int(1 / conf.scale_factor_downsampler)
+            sf = int(conf.scale_factor)
             shape = img.shape
             img = img[:-(shape[0] % sf), :, :] if shape[0] % sf > 0 else img
             img = img[:, :-(shape[1] % sf), :] if shape[1] % sf > 0 else img
@@ -200,7 +209,7 @@ class DataGenerator_ALLIMG(Dataset):
         # self.crop_indices_for_g, self.crop_indices_for_d = self.make_list_of_crop_indices(conf=conf)
 
     def __len__(self):
-        return self.conf.num_iters * self.conf.batch_size
+        return self.conf.pretrained_gdn_num_iters * self.conf.batch_size
 
     def __getitem__(self, idx):
         """Get a crop for both G and D """
@@ -238,8 +247,8 @@ class DataGenerator_ALLIMG(Dataset):
         return all_crop_img
 
     def make_list_of_crop_indices(self, conf, img):
-        iterations = conf.num_iters * conf.batch_size
-        prob_map_big, prob_map_sml = self.create_prob_maps(scale_factor=conf.scale_factor_downsampler, img=img)
+        iterations = conf.pretrained_gdn_num_iters * conf.batch_size
+        prob_map_big, prob_map_sml = self.create_prob_maps(scale_factor=1/conf.scale_factor, img=img)
         crop_indices_for_g = np.random.choice(a=len(prob_map_sml), size=iterations, p=prob_map_sml)
         crop_indices_for_d = np.random.choice(a=len(prob_map_big), size=iterations, p=prob_map_big)
         return crop_indices_for_g, crop_indices_for_d

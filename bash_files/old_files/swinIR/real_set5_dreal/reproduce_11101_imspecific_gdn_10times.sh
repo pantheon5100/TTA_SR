@@ -4,7 +4,7 @@
 
 strategy="11101"
 
-CUDA_VISIBLE_DEVICES=4 python tta_main_train_unified_gdn.py \
+CUDA_VISIBLE_DEVICES=1 python tta_main_train_unified_gdn.py \
         --input_dir "../../dataset/my_RealSR/Test/2_3_3/LR" \
         --gt_dir "../../dataset/my_RealSR/Test/2_3_3/HR" \
         --output_dir "reproduce_imspecific_gdn-lr_10times-"$strategy \

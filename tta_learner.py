@@ -22,7 +22,7 @@ class Learner:
 
     def update(self, iteration: int, model: TTASR):
 
-        if iteration >= model.conf.gdn_iters:
+        if iteration >= model.conf.gdn_iters and model.train_G_UP_switch:
             self.G_UP_lr_scheduler.step()
         
 

@@ -196,6 +196,7 @@ class TTASR:
                 loss_cycle_forward = self.criterion_cycle(self.rec_LR, util.shave_a2b(
                     self.real_LR, self.rec_LR)) * self.conf.lambda_cycle
 
+            # import ipdb; ipdb.set_trace()
             if self.train_strategy[3] == 1 or self.train_strategy[0] == 1:
                 self.fake_LR = self.G_DN(self.real_HR)
 

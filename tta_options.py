@@ -24,8 +24,8 @@ class options:
         self.parser.add_argument('--scale_factor_downsampler', type=float, default=0.5, help='scale factor for downsampler')
         
         # Input size configuration 
-        self.parser.add_argument('--g_input_shape', type=int, default=48, help='input shape for g')
-        self.parser.add_argument('--d_input_shape', type=int, default=24, help='input shape for d')
+        # self.parser.add_argument('--g_input_shape', type=int, default=48, help='input shape for g')
+        # self.parser.add_argument('--d_input_shape', type=int, default=24, help='input shape for d')
         
         #Lambda Parameters
         self.parser.add_argument('--lambda_cycle', type=int, default=5, help='lambda parameter for cycle consistency loss')
@@ -35,7 +35,7 @@ class options:
         # Learning rates
         self.parser.add_argument('--lr_G_UP', type=float, default=0.001, help='initial learning rate for upsampler generator')
         self.parser.add_argument('--lr_G_UP_step_size', type=int, default=750)
-        self.parser.add_argument('--lr_G_DN', type=float, default=0.0002, help='initial learning rate for downsampler generator')
+        self.parser.add_argument('--lr_G_DN', type=float, default=0.01, help='initial learning rate for downsampler generator')
         self.parser.add_argument('--lr_G_DN_step_size', type=int, default=750)
         self.parser.add_argument('--lr_D_DN', type=float, default=0.0002, help='initial learning rate for downsampler discriminator')
         self.parser.add_argument('--beta1', type=float, default=0.5, help='Adam momentum')
@@ -92,9 +92,14 @@ class options:
         self.parser.add_argument('--pretrained_gdn', type=str, default='')
         self.parser.add_argument('--pretrained_gdn_with_imgenet', action='store_true')
         self.parser.add_argument('--pretrained_gdn_num_iters', type=int, default=3000)
+        
 
         # for gup updating
         self.parser.add_argument('--finetune_gdn', action='store_true')
+        
+        # for wandb
+        self.parser.add_argument('--project', type=str, default='TTA_SR_11001')
+        self.parser.add_argument('--entity', type=str, default='kaistssl')
         
 
         self.conf = self.parser.parse_args()
@@ -105,39 +110,67 @@ class options:
 
 
 
-    def get_config(self, img_name):
-        self.conf.update(
-            {"abs_img_name": os.path.splitext(img_name)[0],
-            "input_image_path": os.path.join(self.conf.input_dir, img_name),
-            "kernel_path": os.path.join(self.conf.kernel_dir, self.conf.abs_img_name + '.mat') if self.conf.kernel_dir != '' else None
-            
-            }, allow_val_change=True)
-        # self.conf.input_image_path = os.path.join(self.conf.input_dir, img_name)
-        # self.conf.kernel_path = os.path.join(self.conf.kernel_dir, self.conf.abs_img_name + '.mat') if self.conf.kernel_dir != '' else None
-        # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) if self.conf.gt_dir != '' else None
+    def get_config(self, img_name, wandb_config=False):
+        if wandb_config:
+            self.conf.update(
+                {"abs_img_name": os.path.splitext(img_name)[0],
+                "input_image_path": os.path.join(self.conf.input_dir, img_name),
+                "kernel_path": os.path.join(self.conf.kernel_dir, self.conf.abs_img_name + '.mat') if self.conf.kernel_dir != '' else None
+                
+                }, allow_val_change=True)
+            # self.conf.input_image_path = os.path.join(self.conf.input_dir, img_name)
+            # self.conf.kernel_path = os.path.join(self.conf.kernel_dir, self.conf.abs_img_name + '.mat') if self.conf.kernel_dir != '' else None
+            # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) if self.conf.gt_dir != '' else None
 
-        if "Set5" in self.conf.gt_dir:
-            # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png") if self.conf.gt_dir != '' else None
-            gt_path = os.path.join(self.conf.gt_dir, img_name)
-        
-        elif "Manga109" in self.conf.gt_dir:
-            gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png")
-        elif "my_RealSR" in self.conf.gt_dir:
-            gt_path = os.path.join(self.conf.gt_dir, img_name) 
-        
+            if "Set5" in self.conf.gt_dir:
+                # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png") if self.conf.gt_dir != '' else None
+                gt_path = os.path.join(self.conf.gt_dir, img_name)
+            
+            elif "Manga109" in self.conf.gt_dir:
+                gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png")
+            elif "my_RealSR" in self.conf.gt_dir:
+                gt_path = os.path.join(self.conf.gt_dir, img_name) 
+            
+            else:
+                # for set14 and other dataset
+                gt_path = os.path.join(self.conf.gt_dir, img_name) 
+                
+
+            self.conf.update({"gt_path":os.path.join(self.conf.gt_dir, img_name) if self.conf.gt_dir != '' else None}, allow_val_change=True)
+
+            print('*' * 60)
+            print('input image: \'%s\'' %self.conf.input_image_path)
+            print('grand-truth image: \'%s\'' %gt_path)
+            # print('grand-truth kernel: \'%s\'' %self.conf.kernel_path)
+            return self.conf
+
         else:
-            # for set14 and other dataset
-            gt_path = os.path.join(self.conf.gt_dir, img_name) 
+            self.conf.abs_img_name = os.path.splitext(img_name)[0]
+            self.conf.input_image_path = os.path.join(self.conf.input_dir, img_name)
+            self.conf.kernel_path = os.path.join(self.conf.kernel_dir, self.conf.abs_img_name + '.mat') if self.conf.kernel_dir != '' else None
+            # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) if self.conf.gt_dir != '' else None
+
+            if "Set5" in self.conf.gt_dir:
+                # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png") if self.conf.gt_dir != '' else None
+                self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name)
             
+            elif "Manga109" in self.conf.gt_dir:
+                self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png")
+            elif "my_RealSR" in self.conf.gt_dir:
+                self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) 
+            
+            else:
+                # for set14 and other dataset
+                self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) 
+                
 
-        self.conf.update({"gt_path":os.path.join(self.conf.gt_dir, img_name) if self.conf.gt_dir != '' else None}, allow_val_change=True)
+            # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) if self.conf.gt_dir != '' else None
 
-        print('*' * 60)
-        print('input image: \'%s\'' %self.conf.input_image_path)
-        print('grand-truth image: \'%s\'' %gt_path)
-        # print('grand-truth kernel: \'%s\'' %self.conf.kernel_path)
-        return self.conf
-
+            print('*' * 60)
+            print('input image: \'%s\'' %self.conf.input_image_path)
+            print('grand-truth image: \'%s\'' %self.conf.gt_path)
+            # print('grand-truth kernel: \'%s\'' %self.conf.kernel_path)
+            return self.conf
 
 
 

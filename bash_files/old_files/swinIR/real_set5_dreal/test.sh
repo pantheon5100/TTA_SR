@@ -28,8 +28,8 @@
 strategy="11111"
 
 CUDA_VISIBLE_DEVICES=0 python tta_main_train_unified_gdn.py \
-        --input_dir "../dataset/my_RealSR/Test/2_6/LR" \
-        --gt_dir "../dataset/my_RealSR/Test/2_6/HR" \
+        --input_dir "../../dataset/my_RealSR/Test/2_6/LR" \
+        --gt_dir "../../dataset/my_RealSR/Test/2_6/HR" \
         --output_dir test \
         --pretrained_gdn "random_init" \
         --training_strategy $strategy \
