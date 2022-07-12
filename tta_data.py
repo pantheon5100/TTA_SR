@@ -144,7 +144,8 @@ class DataGenerator_ALLIMG(Dataset):
         self.d_input_shape = 24
         
         # Read input image
-        img_dir_list = os.listdir(conf.input_dir)
+        input_dir = '/workspace/ssd1_2tb/nax_projects/super_resolution/dataset/imagenet_selected'
+        img_dir_list = os.listdir(input_dir)
         self.num_imgs = len(img_dir_list)
         assert self.conf.each_batch_img_size <= self.num_imgs
         

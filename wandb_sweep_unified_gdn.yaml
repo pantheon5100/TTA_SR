@@ -25,30 +25,22 @@ parameters:
     value: 20
   lr_G_UP_step_size:
     value: 1000
-  g_input_shape:
-    value: 48
-  d_input_shape:
-    value: 24
+  gdn_iters:
+    value: 0
   lr_G_DN:
     value: 1e-2
   gup_iters:
     distribution: "int_uniform"
     min: 100
     max: 1000
-    q: 100
-  gdn_iters:
-    distribution: "int_uniform"
-    min: 100
-    max: 3000
   lr_G_UP:
     distribution: uniform
     min: 1e-15
-    max: 1e-5
+    max: 1e-1
   pretrained_gdn_num_iters:
     distribution: "int_uniform"
     min: 100
     max: 3000
-    q: 100
 
 
 

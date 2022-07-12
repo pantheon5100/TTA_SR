@@ -1,11 +1,9 @@
 import copy
-import enum
 import glob
 import json
 import os
 import shutil
 from datetime import datetime
-# from turtle import forward
 
 import numpy as np
 # import setGPU
@@ -16,12 +14,8 @@ import wandb
 
 from tta_data import create_dataset, create_dataset_for_image_agnostic_gdn
 import tta_util as util
-# from tta_sr_one_cycle import TTASR
 from tta_learner import Learner
 from tta_options import options
-# from DualSR import DualSR
-# from tta_sr import TTASR
-# from tta_sr_bicubic import TTASR
 from tta_sr_loss_ablation import TTASR
 
 
@@ -72,13 +66,11 @@ def main():
     #############################################################################################
 
     all_psnr = []
-    # Testing
     if True:
         # wandb logger
         wandb.init(
             project=f"TTA_SR-reproduce",
             entity="kaistssl",
-            name=run_name,
             config=opt.conf,
             dir=opt.conf.experimentdir,
             save_code=True,
@@ -87,24 +79,25 @@ def main():
         
         unified_gdn = True
         if unified_gdn:
-            opt_train_gdn = copy.deepcopy(opt)
             opt.conf.update({"lr_G_DN_step_size": int(opt.conf.pretrained_gdn_num_iters/4)}, allow_val_change=True)
 
             # if opt.conf.pretrained_gdn_with_imgenet:
-            #     opt_train_gdn.conf.input_dir = '/workspace/ssd1_2tb/nax_projects/super_resolution/dataset/imagenet_selected'
-            
-            model = TTASR(opt_train_gdn.conf)
+            #     opt.conf.input_dir = '/workspace/ssd1_2tb/nax_projects/super_resolution/dataset/imagenet_selected'
+
+            model = TTASR(opt.conf)
             # use all image to train, every batch contains all image
             from tta_data import create_dataset_for_image_agnostic_gdn
-            dataloader = create_dataset_for_image_agnostic_gdn(opt_train_gdn.conf)
+            dataloader = create_dataset_for_image_agnostic_gdn(opt.conf)
             learner = Learner(model)
 
 
             # freeze GUP
             model.train_G_DN_switch = True
             model.train_G_UP_switch = False
+            model.train_D_DN_switch = True
             model.reshap_train_data = True
 
+            # for unified_gdn, we set gup freeze and gdn train
             util.set_requires_grad([model.G_UP], False)
             # Turn on gradient calculation for G_DN
             util.set_requires_grad([model.G_DN], True)
@@ -114,7 +107,7 @@ def main():
 
                 loss = model.train(data)
 
-                if (iteration+1) % opt_train_gdn.conf.eval_iters == 0:
+                if (iteration+1) % opt.conf.eval_iters == 0:
                     loss_log = {}
                     for key, val in loss.items():
                         key = f"train_GDN/{key}"
@@ -127,13 +120,14 @@ def main():
 
             # save the pretrained GDN
             torch.save(model.G_DN.state_dict(), os.path.join(
-                opt_train_gdn.conf.model_save_dir, "pretrained_GDN.ckpt"))
+                opt.conf.model_save_dir, "pretrained_GDN.ckpt"))
 
             pretrained_GDN_state_dict = model.G_DN.state_dict()
 
 
 
         # Run DualSR on all images in the input directory
+        opt.conf.update({"lr_G_DN_step_size": int(opt.conf.gdn_iters/4)}, allow_val_change=True)
         # for img_name in os.listdir(opt.conf.input_dir):
         img_list = []
         all_psnr = []
