@@ -8,7 +8,7 @@ from datetime import datetime
 # from turtle import forward
 
 import numpy as np
-# import setGPU
+import setGPU
 import torch
 import torch.nn.functional as F
 import tqdm
@@ -142,13 +142,15 @@ def main():
         json.dump(opt.conf.__dict__, f, indent=2)
     #############################################################################################
     #############################################################################################
-
+    # import ipdb; ipdb.set_trace();
     all_psnr = []
+    all_ssim = []
     # Testing
     if opt.conf.test_only:
         model = TTASR(opt.conf)
         
         all_psnr = []
+        all_ssim = []
         img_list = []
         for img_idx, img_name in enumerate(os.listdir(opt.conf.input_dir)):
         # for img_name in os.listdir(opt.conf.input_dir):
@@ -160,20 +162,24 @@ def main():
             with open(os.path.join(conf.experimentdir, "psnr.txt"), "a") as f:
                 #import ipdb; ipdb.set_trace()
                 f.write(
-                    f"IMG: {img_idx}. Iteration: {0}. {conf.abs_img_name}. PSNR: {model.UP_psnrs[-1]}\n")
+                    f"IMG: {img_idx}. Iteration: {0}. {conf.abs_img_name}. PSNR: {model.UP_psnrs[-1]}. SSIM: {model.UP_ssims[-1]}\n")
             all_psnr.append(model.UP_psnrs[-1])
+            all_ssim.append(model.UP_ssims[-1])
             img_list.append(img_name)
             
             
         all_psnr = np.array(all_psnr)
+        all_ssim = np.array(all_ssim)
         with open(os.path.join(conf.experimentdir, "final_psnr.txt"), "a") as f:
             f.write(f"Input directory: {opt.conf.input_dir}.\n")
 
-            for img, psnr in zip(img_list, all_psnr):
-                f.write(f"IMG: {img}, psnr: {psnr} .\n")
+            for img, psnr, ssim in zip(img_list, all_psnr, all_ssim):
+                f.write(f"IMG: {img}, psnr: {psnr}, ssim: {ssim} .\n")
 
             f.write(f"Average PSNR: {np.mean(all_psnr)}.\n")
+            f.write(f"Average SSIm: {np.mean(all_ssim)}.\n")
         print(f"Average PSNR for {opt.conf.input_dir}: {np.mean(all_psnr)}")
+        print(f"Average SSIM for {opt.conf.input_dir}: {np.mean(all_ssim)}")
         
         return
 

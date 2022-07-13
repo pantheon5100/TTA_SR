@@ -9,6 +9,7 @@ from scipy.io import loadmat
 
 import loss
 import tta_util as util
+import tta_util_calculate_psnr_ssim as swin_util
 import tta_util_calculate_psnr_ssim as util_calculate_psnr_ssim
 from tta_model import networks
 from tta_model.get_model import get_model
@@ -75,7 +76,9 @@ class TTASR:
 
         # debug variables
         self.debug_steps = []
+        
         self.UP_psnrs = [] if self.gt_img is not None else None
+        self.UP_ssims = [] if self.gt_img is not None else None
         self.DN_psnrs = [] if self.gt_kernel is not None else None
 
         if self.conf.debug:
@@ -126,6 +129,7 @@ class TTASR:
         self.gt_kernel = loadmat(conf.kernel_path)[
             'Kernel'] if conf.kernel_path is not None else None
         self.UP_psnrs = [] if self.gt_img is not None else None
+        self.UP_ssims = [] if self.gt_img is not None else None
         self.DN_psnrs = [] if self.gt_kernel is not None else None
 
     def reset_ddn(self):
@@ -370,6 +374,9 @@ class TTASR:
                     :, :, :, :w_old + w_pad]
 
                 upsampled_img_t = self.G_UP(in_img_t)
+                # tile test
+                # upsampled_img_t = tile_test(in_img_t, self.G_UP, self.conf.scale_factor, window_size)
+
                 upsampled_img_t = upsampled_img_t[..., :h_old *
                                                   self.conf.scale_factor, :w_old * self.conf.scale_factor]
                 self.downsampled_img = util.tensor2im(downsampled_img_t)
@@ -379,9 +386,9 @@ class TTASR:
                     _, _, h_old, w_old = self.in_img_t.size()
                     self.UP_psnrs = [util.cal_y_psnr(self.upsampled_img, self.gt_img[:h_old * self.conf.scale_factor,
                                                                                      :w_old * self.conf.scale_factor, ...], border=self.conf.scale_factor)]
-                    # self.UP_ssims = [util.util_calculate_psnr_ssim(self.upsampled_img, self.gt_img[:h_old * self.conf.scale_factor,
-                    #                                                                  :w_old * self.conf.scale_factor, ...], border=self.conf.scale_factor)]
-
+                    self.UP_ssims = [swin_util.calculate_ssim(self.upsampled_img, self.gt_img[:h_old * self.conf.scale_factor,
+                                                                                     :w_old * self.conf.scale_factor, ...], crop_border=self.conf.scale_factor)]
+                
 
             elif self.conf.source_model == "edsr" or self.conf.source_model == "rcan":
                 in_img_t = self.in_img_t
@@ -400,7 +407,7 @@ class TTASR:
                 # import ipdb; ipdb.set_trace()
                 self.UP_psnrs += [util.cal_y_psnr(upsampled_img_t, self.gt_img[:h_old * self.conf.scale_factor,
                                                                                :w_old * self.conf.scale_factor, ...], border=self.conf.scale_factor)]
-
+                
                 # if self.gt_img is not None:
                 #     _, _, h_old, w_old = self.in_img_t.size()
                 #     self.UP_psnrs += [util.cal_y_psnr(self.upsampled_img, self.gt_img[:h_old * self.conf.scale_factor,
@@ -585,10 +592,11 @@ class TTASR:
 
 
 
-def test(img_lq, model, args, window_size):
+def tile_test(img_lq, model, scale, window_size):
     args = {
         "tile": 48,
         "tile_overlap": 8,
+        "scale": scale, 
     }
     if args["tile"] is None:
         # test the image as a whole

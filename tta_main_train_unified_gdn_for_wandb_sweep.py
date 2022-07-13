@@ -25,7 +25,7 @@ def main():
 
     opt = options()
     opt.conf.num_iters = opt.conf.gdn_iters + opt.conf.gup_iters
-    opt.conf.switch_iters = opt.conf.gdn_iters
+    opt.conf.switch_iters = 1 if opt.conf.gdn_iters == 0 else opt.conf.gdn_iters
     opt.conf.lr_G_DN_step_size = int(opt.conf.gdn_iters/4)
 
     #############################################################################################
@@ -66,6 +66,7 @@ def main():
     #############################################################################################
 
     all_psnr = []
+    all_ssim = []
     if True:
         # wandb logger
         wandb.init(
@@ -103,6 +104,7 @@ def main():
             util.set_requires_grad([model.G_DN], True)
 
             # train GDN
+            print("Train unified GDN starts ...")
             for iteration, data in enumerate(tqdm.tqdm(dataloader)):
 
                 loss = model.train(data)
@@ -127,10 +129,16 @@ def main():
 
 
         # Run DualSR on all images in the input directory
-        opt.conf.update({"lr_G_DN_step_size": int(opt.conf.gdn_iters/4)}, allow_val_change=True)
+        if opt.conf.gdn_iters != 0:
+            opt.conf.update({"lr_G_DN_step_size": int(opt.conf.gdn_iters/4)}, allow_val_change=True)
+        else:
+            opt.conf.update({"lr_G_DN_step_size": 1}, allow_val_change=True)
+
         # for img_name in os.listdir(opt.conf.input_dir):
         img_list = []
         all_psnr = []
+        all_ssim = []
+
         for img_idx, img_name in enumerate(os.listdir(opt.conf.input_dir)):
 
 
@@ -157,6 +165,8 @@ def main():
                 "PSNR": 0,
             }
             psnr_record = []
+            ssim_record = []
+
 
             model.train_G_DN_switch = True
             model.train_G_UP_switch = False
@@ -176,16 +186,17 @@ def main():
                 # if (iteration+1) % 1000 == 0:
                 #     model.reset_ddn()
 
-                if ((iteration+1) % conf.model_save_iter == 0) or ((iteration+1) % model.conf.switch_iters == 0):
-                    model.save_model(iteration+1)
+                # if ((iteration+1) % conf.model_save_iter == 0) or ((iteration+1) % model.conf.switch_iters == 0):
+                #     model.save_model(iteration+1)
 
                 if (iteration+1) % conf.eval_iters == 0 and model.train_G_UP_switch:
                     model.eval(iteration)
                     with open(os.path.join(conf.experimentdir, "psnr.txt"), "a") as f:
                         f.write(
-                            f"IMG_IDX: {conf.img_idx}. iteration: {iteration}. {conf.abs_img_name}. PSNR: {model.UP_psnrs[-1]} \n")
+                            f"IMG_IDX: {conf.img_idx}. iteration: {iteration}. {conf.abs_img_name}. PSNR: {model.UP_psnrs[-1]}. SSIM: {model.UP_ssims[-1]} \n")
 
                     loss["eval/psnr"] = model.UP_psnrs[-1]
+                    loss["eval/ssim"] = model.UP_ssims[-1]
 
                     if model.UP_psnrs[-1] > best_res["PSNR"]:
                         best_res["PSNR"] = model.UP_psnrs[-1]
@@ -193,6 +204,8 @@ def main():
                     pass
 
                     psnr_record.append([iteration, model.UP_psnrs[-1]])
+                    ssim_record.append([iteration, model.UP_ssims[-1]])
+
 
                 if (iteration+1) % conf.eval_iters == 0:
                     loss_log = {}
@@ -205,12 +218,18 @@ def main():
 
             torch.save(psnr_record, os.path.join(
                 conf.model_save_dir, f"{conf.abs_img_name}_psnr.pt"))
+            torch.save(ssim_record, os.path.join(
+                conf.model_save_dir, f"{conf.abs_img_name}_ssim.pt"))
+
+
             print("Best PSNR: {}, at iteration: {}".format(
                 best_res["PSNR"], best_res["iteration"]))
             wandb.run.summary[f"best_psnr_{conf.abs_img_name}"] = best_res["PSNR"]
 
             model.eval(0, save_result=True, )
             psnr = model.UP_psnrs[-1]
+            ssim = model.UP_ssims[-1]
+
 
             
             
@@ -235,13 +254,20 @@ def main():
             
             
             all_psnr.append(psnr)
+            all_ssim.append(ssim)
+
             img_list.append(img_name)
+
+            # model.save_model(iteration+1)
             
             with open(os.path.join(conf.experimentdir, "final_psnr.txt"), "a") as f:
-                f.write(f"IMG: {img_name}, psnr: {psnr} .\n")
+                f.write(f"IMG: {img_name}, psnr: {psnr}, ssim: {ssim} .\n")
+            
 
 
     all_psnr = np.array(all_psnr)
+    all_ssim = np.array(all_ssim)
+
     with open(os.path.join(conf.experimentdir, "final_psnr.txt"), "a") as f:
         f.write(f"Input directory: {opt.conf.input_dir}.\n")
 
@@ -249,8 +275,13 @@ def main():
         #     f.write(f"IMG: {img}, psnr: {psnr} .\n")
 
         f.write(f"Average PSNR: {np.mean(all_psnr)}.\n")
+        f.write(f"Average SSIM: {np.mean(all_ssim)}.\n")
     print(f"Average PSNR for {opt.conf.input_dir}: {np.mean(all_psnr)}")
+    print(f"Average SSIM for {opt.conf.input_dir}: {np.mean(all_ssim)}")
+
     wandb.run.summary[f"average_psnr"] = np.mean(all_psnr)
+    wandb.run.summary[f"average_ssim"] = np.mean(all_ssim)
+
 
 if __name__ == '__main__':
     main()

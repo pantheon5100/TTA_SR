@@ -1,5 +1,6 @@
 import os
 import random
+import tqdm
 
 import numpy as np
 import torch
@@ -120,7 +121,9 @@ class DataGenerator(Dataset):
 
 def create_dataset_for_image_agnostic_gdn(conf):
     dataset = DataGenerator_ALLIMG(conf)
-    dataloader = DataLoader(dataset, batch_size=conf.batch_size, shuffle=False, pin_memory=True, num_workers=3)
+    # dataloader = DataLoader(dataset, batch_size=conf.batch_size, shuffle=False, pin_memory=True, num_workers=3)
+    dataloader = DataLoader(dataset, batch_size=conf.batch_size, shuffle=False, pin_memory=True)
+
     return dataloader
 
 class DataGenerator_ALLIMG(Dataset):
@@ -138,13 +141,13 @@ class DataGenerator_ALLIMG(Dataset):
         # Default shapes
         # self.g_input_shape = conf.input_crop_size
         # self.d_input_shape = int(conf.input_crop_size * conf.scale_factor_downsampler)
-        self.g_input_shape = conf.g_input_shape
-        self.d_input_shape = conf.d_input_shape
+        # self.g_input_shape = conf.g_input_shape
+        # self.d_input_shape = conf.d_input_shape
         self.g_input_shape = 48
         self.d_input_shape = 24
         
         # Read input image
-        input_dir = '/workspace/ssd1_2tb/nax_projects/super_resolution/dataset/imagenet_selected'
+        input_dir = '/workspace/super_resolution/dataset/imagenet_selected'
         img_dir_list = os.listdir(input_dir)
         self.num_imgs = len(img_dir_list)
         assert self.conf.each_batch_img_size <= self.num_imgs
@@ -163,13 +166,21 @@ class DataGenerator_ALLIMG(Dataset):
             self.in_cols = image_data["in_cols"]
             self.crop_indices_for_g = image_data["crop_indices_for_g"]
             self.crop_indices_for_d = image_data["crop_indices_for_d"]
+
+            # for img in tqdm.tqdm(self.all_img):
+            #     crop_indices_for_g, crop_indices_for_d = self.make_list_of_crop_indices(conf=conf, img=img)
+            #     self.crop_indices_for_g.append(crop_indices_for_g)
+            #     self.crop_indices_for_d.append(crop_indices_for_d)
+
+            # print(self.crop_indices_for_d.size())
             # import ipdb; ipdb.set_trace()
+
             return
-        
-        for img_dir in img_dir_list:
-            print(1)
+
+        for img_dir in tqdm.tqdm(img_dir_list):
+
             # import ipdb; ipdb.set_trace()
-            img = read_image(os.path.join(conf.input_dir, img_dir))
+            img = read_image(os.path.join(input_dir, img_dir))
             img = img / 255. if conf.source_model=="swinir" else img
             
             # Crop 10 pixels to avoid boundaries effects in synthetically generated examples
@@ -248,7 +259,8 @@ class DataGenerator_ALLIMG(Dataset):
         return all_crop_img
 
     def make_list_of_crop_indices(self, conf, img):
-        iterations = conf.pretrained_gdn_num_iters * conf.batch_size
+        # iterations = conf.pretrained_gdn_num_iters * conf.batch_size
+        iterations = 7000
         prob_map_big, prob_map_sml = self.create_prob_maps(scale_factor=1/conf.scale_factor, img=img)
         crop_indices_for_g = np.random.choice(a=len(prob_map_sml), size=iterations, p=prob_map_sml)
         crop_indices_for_d = np.random.choice(a=len(prob_map_big), size=iterations, p=prob_map_big)

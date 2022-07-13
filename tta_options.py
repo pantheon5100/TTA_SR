@@ -98,7 +98,7 @@ class options:
         self.parser.add_argument('--finetune_gdn', action='store_true')
         
         # for wandb
-        self.parser.add_argument('--project', type=str, default='TTA_SR_11001')
+        self.parser.add_argument('--project', type=str, default='TTA_SR_RealSR')
         self.parser.add_argument('--entity', type=str, default='kaistssl')
         
 
@@ -107,8 +107,6 @@ class options:
         self.conf.scale_factor_downsampler = 1/self.conf.scale_factor
         # if not os.path.exists(self.conf.output_dir):
         #     os.makedirs(self.conf.output_dir)
-
-
 
     def get_config(self, img_name, wandb_config=False):
         if wandb_config:
