@@ -373,9 +373,9 @@ class TTASR:
                 in_img_t = torch.cat([in_img_t, torch.flip(in_img_t, [3])], 3)[
                     :, :, :, :w_old + w_pad]
 
-                upsampled_img_t = self.G_UP(in_img_t)
+                # upsampled_img_t = self.G_UP(in_img_t)
                 # tile test
-                # upsampled_img_t = tile_test(in_img_t, self.G_UP, self.conf.scale_factor, window_size)
+                upsampled_img_t = tile_test(in_img_t, self.G_UP, self.conf.scale_factor, window_size)
 
                 upsampled_img_t = upsampled_img_t[..., :h_old *
                                                   self.conf.scale_factor, :w_old * self.conf.scale_factor]

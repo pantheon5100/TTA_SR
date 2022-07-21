@@ -129,12 +129,16 @@ class options:
             elif "my_RealSR" in self.conf.gt_dir:
                 gt_path = os.path.join(self.conf.gt_dir, img_name) 
             
+            elif "DRealSR" in self.conf.gt_dir:
+                img_name[-5] = f"{self.conf.scale_factor}"
+                gt_path = os.path.join(self.conf.gt_dir, img_name) 
+            
             else:
                 # for set14 and other dataset
                 gt_path = os.path.join(self.conf.gt_dir, img_name) 
                 
 
-            self.conf.update({"gt_path":os.path.join(self.conf.gt_dir, img_name) if self.conf.gt_dir != '' else None}, allow_val_change=True)
+            self.conf.update({"gt_path":gt_path if self.conf.gt_dir != '' else None}, allow_val_change=True)
 
             print('*' * 60)
             print('input image: \'%s\'' %self.conf.input_image_path)
@@ -156,12 +160,14 @@ class options:
                 self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+".png")
             elif "my_RealSR" in self.conf.gt_dir:
                 self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) 
+            elif "DRealSR" in self.conf.gt_dir:
+                # import ipdb; ipdb.set_trace()
+                self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name[:-6]+f"x{self.conf.scale_factor}"+".png")
             
             else:
                 # for set14 and other dataset
                 self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) 
                 
-
             # self.conf.gt_path = os.path.join(self.conf.gt_dir, img_name) if self.conf.gt_dir != '' else None
 
             print('*' * 60)

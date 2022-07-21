@@ -111,7 +111,19 @@ def main():
     print("Start file saving...")
     time_stamp = datetime.now().strftime("%Y%m%d%H%M%S")
     # ipdb.set_trace()
-    data_set_name = opt.conf.gt_dir.split("/")[-2]
+    data_set_names = ["Set5", "Set14", "RealSR", "DRealSR"]
+    
+    for name in data_set_names:
+        if name in opt.conf.gt_dir:
+            data_set_name = name
+            break
+        else:
+            name = None
+    
+    if name == None:
+        raise NotImplementedError
+
+    # data_set_name = opt.conf.gt_dir.split("/")[-2]
     run_name = f"{opt.conf.output_dir}-{opt.conf.source_model}-{data_set_name}-x{opt.conf.scale_factor}-{opt.conf.training_strategy}"
     if opt.conf.pretrained_gdn != "":
         run_name += "-use_pretrained_gdn"

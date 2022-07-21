@@ -9,3 +9,5 @@ wandb
 log
 test
 tta_pretrained
+
+jupyter/
